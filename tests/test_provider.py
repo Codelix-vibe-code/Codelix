@@ -5,10 +5,13 @@ from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
 from codelix.config import ProviderSettings, validate_config
+from codelix.config import load_env_file
 from codelix.providers import (
     AccessDeniedError,
     AuthenticationError,
     GeminiAdapter,
+    GroqAdapter,
+    NvidiaAdapter,
     InvalidResponseError,
     ModelNotFoundError,
     ModelRouter,
@@ -115,6 +118,40 @@ class GeminiAdapterTests(unittest.TestCase):
     def test_rejects_unrecognized_generation_options(self):
         with self.assertRaises(ValueError):
             GeminiAdapter._request_body([{"role": "user", "content": "hi"}], "model", {"top_p": 0.5})
+
+
+class CompatibleProviderTests(unittest.TestCase):
+    def test_nvidia_and_groq_use_compatible_chat_api(self):
+        cases = [
+            (NvidiaAdapter, "https://integrate.api.nvidia.com/v1", "nvidia"),
+            (GroqAdapter, "https://api.groq.com/openai/v1", "groq"),
+        ]
+        for adapter_type, base_url, name in cases:
+            with self.subTest(provider=name):
+                adapter = adapter_type(ProviderSettings(base_url, f"{name.upper()}_API_KEY"), api_key="test-secret")
+                response = FakeResponse({"choices": [{"message": {"content": "ok"}}]})
+                with patch("codelix.providers.openai_compatible.build_opener") as opener:
+                    opener.return_value.open.return_value.__enter__.return_value = response
+                    self.assertEqual(adapter.complete([{"role": "user", "content": "salut"}], "model-id"), "ok")
+                request = opener.return_value.open.call_args.args[0]
+                self.assertEqual(request.full_url, f"{base_url}/chat/completions")
+                self.assertEqual(request.get_header("Authorization"), "Bearer test-secret")
+                body = json.loads(request.data)
+                self.assertEqual(body["messages"][0]["content"], "salut")
+                self.assertFalse(body["stream"])
+
+    def test_env_loader_preserves_existing_variables_and_supports_quotes(self):
+        import os
+        from pathlib import Path
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            env_path = Path(directory) / ".env"
+            env_path.write_text("CODELIX_TEST_SECRET='private value'\nexport CODELIX_TEST_OTHER=value # note\n", encoding="utf-8")
+            with patch.dict(os.environ, {"CODELIX_TEST_SECRET": "process-value"}, clear=False):
+                load_env_file(env_path)
+                self.assertEqual(os.environ["CODELIX_TEST_SECRET"], "process-value")
+                self.assertEqual(os.environ["CODELIX_TEST_OTHER"], "value")
 
 
 class FakeProvider:

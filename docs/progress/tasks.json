@@ -39,20 +39,20 @@
       "title": "Fournisseurs IA et routage",
       "status": "needs_review",
       "dependencies": ["phase-1-foundations"],
-      "acceptance_criteria": ["Adaptateur Gemini conforme à la documentation officielle", "Fallback et erreurs bornés testés", "Appel réel vérifié avec modèle et quota autorisés"],
+      "acceptance_criteria": ["Adaptateurs Gemini, NVIDIA et Groq conformes à leurs documentations officielles", "Chargement local du fichier .env sans écrasement des variables du processus", "Fallback et erreurs bornés testés", "Appel réel vérifié avec modèle et quota autorisés"],
       "attempts": 0,
-      "files_modified": ["README.md", "config.example.toml", "docs/providers.md", "docs/progress/tasks.json", "PROJECT_STATUS.md", "sessions.md", "src/codelix/providers/__init__.py", "src/codelix/providers/errors.py", "src/codelix/providers/gemini.py", "src/codelix/providers/router.py", "tests/test_provider.py"],
+      "files_modified": [".env.example", "README.md", "config.example.toml", "docs/providers.md", "docs/progress/tasks.json", "PROJECT_STATUS.md", "sessions.md", "src/codelix/config.py", "src/codelix/providers/__init__.py", "src/codelix/providers/errors.py", "src/codelix/providers/gemini.py", "src/codelix/providers/groq.py", "src/codelix/providers/nvidia.py", "src/codelix/providers/openai_compatible.py", "src/codelix/providers/router.py", "tests/test_provider.py"],
       "verifications": [
         {
           "command": "python -B -m unittest discover -s tests -v",
           "exit_code": 0,
-          "summary": "42 tests réussis avec Python 3.12.14. Les requêtes HTTP sont simulées ; aucun appel facturable n'a été envoyé.",
+          "summary": "44 tests réussis avec Python 3.12.14. Les requêtes HTTP sont simulées ; aucun appel fournisseur n'a été envoyé. Les trois variables du .env local ont été détectées sans afficher leurs valeurs.",
           "errors": [],
           "execution_id": "2026-09-29T14:04:35Z",
-          "acceptance_criteria": ["Adaptateur Gemini conforme à la documentation officielle", "Fallback et erreurs bornés testés"]
+          "acceptance_criteria": ["Adaptateurs Gemini, NVIDIA et Groq conformes à leurs documentations officielles", "Chargement local du fichier .env sans écrasement des variables du processus", "Fallback et erreurs bornés testés"]
         }
       ],
-      "last_result": "Code et tests simulés prêts ; l'appel réel reste à valider après configuration d'un modèle et confirmation du quota disponible."
+      "last_result": "Adaptateurs Gemini, NVIDIA et Groq intégrés ; .env local détecté et ignoré par Git ; 44 tests réussis. L'appel réel reste à valider après choix d'un modèle et examen du quota."
     },
     {
       "id": "phase-3-controlled-execution",

@@ -1,5 +1,27 @@
 # Fournisseurs et routage
 
+Codelix charge automatiquement les affectations simples du fichier `.env`
+placé près de `codelix.toml`. Les variables déjà définies dans le processus
+ont priorité. Le `.env` est ignoré par Git ; ne le partagez pas.
+
+## NVIDIA Build et Groq
+
+NVIDIA Build et Groq utilisent tous deux l'endpoint Chat Completions compatible
+OpenAI. NVIDIA expose `https://integrate.api.nvidia.com/v1/chat/completions` ;
+Groq expose `https://api.groq.com/openai/v1/chat/completions`. Les adaptateurs
+envoient les messages en Bearer auth et n'activent pas le streaming.
+
+- [Référence NVIDIA LLM APIs](https://docs.api.nvidia.com/nim/reference/llm-apis)
+- [Référence NVIDIA chat completion](https://docs.api.nvidia.com/nim/reference/meta-llama2-70b-infer)
+- [Référence Groq Chat Completions](https://console.groq.com/docs/api-reference)
+- [Vue d'ensemble Groq et compatibilité](https://console.groq.com/docs/overview)
+
+Dans `.env`, les noms de variables configurés pour ce projet sont
+`Nvidia_API_KEY` et `Groq_API_KEY`. Placez les URL et variables dans
+`codelix.toml`, puis choisissez vous-même les identifiants de modèles autorisés
+sur vos comptes. Codelix ne préconfigure aucun modèle ni ne fait d'appel de
+validation à votre place.
+
 ## Gemini
 
 Codelix utilise l'API REST **Interactions** de Gemini sur l'API stable `v1`.

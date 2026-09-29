@@ -10,9 +10,18 @@ network_retries = 1
 base_url = "https://generativelanguage.googleapis.com/v1"
 api_key_env = "GEMINI_API_KEY"
 
+[providers.nvidia]
+base_url = "https://integrate.api.nvidia.com/v1"
+api_key_env = "Nvidia_API_KEY"
+
+[providers.groq]
+base_url = "https://api.groq.com/openai/v1"
+api_key_env = "Groq_API_KEY"
+
 [models]
 # Les candidats sont ordonnés et au format "fournisseur:identifiant".
-# Exemple à activer après choix du modèle : planner = ["gemini:gemini-2.5-flash"]
+# Exemples à activer après choix des modèles accessibles dans chaque compte.
+# planner = ["gemini:ID_MODELE", "nvidia:ID_MODELE", "groq:ID_MODELE"]
 planner = []
 coder = []
 tester = []

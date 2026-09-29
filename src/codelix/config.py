@@ -107,12 +107,39 @@ def validate_config(raw: Any) -> CodelixConfig:
 def load_config(path: Path) -> CodelixConfig:
     """Charge un TOML UTF-8 et n'inclut jamais les valeurs secrètes dans les erreurs."""
     try:
+        load_env_file(path.parent / ".env")
         with path.open("rb") as source:
             return validate_config(tomllib.load(source))
     except FileNotFoundError as exc:
         raise ConfigurationError(f"Fichier de configuration introuvable: {path}.") from exc
     except tomllib.TOMLDecodeError as exc:
         raise ConfigurationError(f"Syntaxe TOML invalide dans {path}.") from exc
+
+
+def load_env_file(path: Path) -> None:
+    """Charge les affectations simples d'un .env local sans écraser l'environnement."""
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return
+    except OSError as exc:
+        raise ConfigurationError(f"Impossible de lire le fichier d'environnement {path}.") from exc
+    for number, raw_line in enumerate(lines, 1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].lstrip()
+        name, separator, value = line.partition("=")
+        name = name.strip()
+        if not separator or not name or not name.replace("_", "").isalnum() or name[0].isdigit():
+            raise ConfigurationError(f"Ligne {number} invalide dans le fichier d'environnement.")
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        elif " #" in value:
+            value = value.split(" #", 1)[0].rstrip()
+        os.environ.setdefault(name, value)
 
 
 def provider_api_key(provider: ProviderSettings) -> str | None:

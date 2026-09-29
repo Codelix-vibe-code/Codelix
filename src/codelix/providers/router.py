@@ -8,6 +8,8 @@ from typing import Any, Protocol
 from ..config import CodelixConfig
 from .errors import ProviderError, RoutingError
 from .gemini import GeminiAdapter
+from .groq import GroqAdapter
+from .nvidia import NvidiaAdapter
 
 
 class Provider(Protocol):
@@ -129,6 +131,12 @@ def build_router(config: CodelixConfig) -> ModelRouter:
             gemini_settings,
             timeout_seconds=config.runtime.request_timeout_seconds,
         )
+    for provider_name, adapter_type in (("nvidia", NvidiaAdapter), ("groq", GroqAdapter)):
+        settings = config.providers.get(provider_name)
+        if settings is not None:
+            providers[provider_name] = adapter_type(
+                settings, timeout_seconds=config.runtime.request_timeout_seconds,
+            )
     return ModelRouter(
         providers,
         config.models,
