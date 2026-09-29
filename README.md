@@ -25,6 +25,32 @@ python -m unittest discover -s tests -v
 
 La suite est également compatible avec `pytest` lorsqu'il est installé.
 
-L'adaptateur Gemini et le format de configuration sont décrits dans
+Les adaptateurs Gemini, NVIDIA Build et Groq sont décrits dans
 [`docs/providers.md`](docs/providers.md). Aucun modèle n'est activé par défaut ;
 les identifiants et l'ordre des candidats sont choisis dans `codelix.toml`.
+
+## CLI
+
+Après installation (`python -m pip install -e .`) :
+
+```powershell
+codelix init .
+codelix config
+codelix status
+codelix plan "Ajouter une page de connexion"
+codelix approve-plan
+codelix code --task-id TACHE
+codelix apply .codelix-cache/proposals/ID.json --task-id TACHE
+codelix verify --task-id TACHE --command "python -m unittest discover -s tests -v"
+```
+
+`init` ne remplace jamais les fichiers existants. `verify` n'exécute que la
+ligne exacte inscrite dans `verifier.allowed_commands`. `apply` affiche d'abord
+les fichiers et demande une confirmation interactive avant toute écriture.
+Ajoutez uniquement des commandes de vérification adaptées et approuvées dans
+`codelix.toml`.
+
+`plan` et `code` envoient une requête au fournisseur seulement quand vous lancez
+ces commandes et après avoir configuré des candidats dans `[models]`. `plan`
+enregistre un brouillon; `approve-plan` affiche les tâches et critères puis
+demande une confirmation. `code` valide le JSON retourné et n'écrit aucun fichier.

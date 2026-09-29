@@ -77,24 +77,50 @@
     {
       "id": "phase-4-verifier",
       "title": "Vérification déterministe et boucle de correction",
-      "status": "todo",
+      "status": "done",
       "dependencies": ["phase-3-controlled-execution"],
-      "acceptance_criteria": ["Commandes autorisées uniquement", "Résultats réels consignés", "Deux corrections au plus par tâche"],
+      "acceptance_criteria": ["Commandes autorisées uniquement, sans shell", "Code de sortie, sortie utile, critères et durée consignés", "Sorties sensibles masquées", "Deux corrections au plus par tâche"],
       "attempts": 0,
-      "files_modified": [],
-      "verifications": [],
-      "last_result": null
+      "files_modified": ["src/codelix/verifier.py", "tests/test_verifier.py"],
+      "verifications": [
+        {
+          "command": "python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "55 tests réussis avec Python 3.12.14 dans l'environnement de développement ; un test symlink ignoré dans ce checkout.",
+          "errors": [],
+          "execution_id": "2026-09-29T14:16:32Z",
+          "acceptance_criteria": ["Commandes autorisées uniquement, sans shell", "Code de sortie, sortie utile, critères et durée consignés", "Sorties sensibles masquées", "Deux corrections au plus par tâche"]
+        }
+      ],
+      "last_result": "Vérificateur strict, sortie filtrée et limite de corrections de deux implémentés ; commandes réellement lancées uniquement si présentes dans la liste autorisée."
     },
     {
       "id": "phase-5-cli-stabilization",
       "title": "CLI, documentation et stabilisation",
-      "status": "todo",
+      "status": "done",
       "dependencies": ["phase-4-verifier"],
-      "acceptance_criteria": ["Commandes CLI documentées", "Parcours de démonstration reproductible"],
+      "acceptance_criteria": ["CLI documentée pour initialiser, lire le statut, planifier, approuver, générer, appliquer et vérifier", "Plan et proposition validés avec contrats JSON", "Approbation demandée avant intégration d'un plan et écriture de fichiers", "Parcours de démonstration sans appel IA par défaut"],
       "attempts": 0,
-      "files_modified": [],
-      "verifications": [],
-      "last_result": null
+      "files_modified": ["README.md", "pyproject.toml", "src/codelix/__main__.py", "src/codelix/cli.py", "src/codelix/workflow.py", "tests/test_cli.py", "tests/test_workflow.py"],
+      "verifications": [
+        {
+          "command": "python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "66 tests réussis avec Python 3.12.14 dans le checkout de développement ; un test symlink ignoré dans ce checkout.",
+          "errors": [],
+          "execution_id": "2026-09-29T14:27:31Z",
+          "acceptance_criteria": ["CLI documentée pour initialiser, lire le statut, planifier, approuver, générer, appliquer et vérifier", "Plan et proposition validés avec contrats JSON", "Approbation demandée avant intégration d'un plan et écriture de fichiers", "Parcours de démonstration sans appel IA par défaut"]
+        },
+        {
+          "command": "python -B -m codelix --help",
+          "exit_code": 0,
+          "summary": "L'aide CLI affiche les 8 commandes disponibles.",
+          "errors": [],
+          "execution_id": "2026-09-29T14:27:31Z",
+          "acceptance_criteria": ["CLI documentée pour initialiser, lire le statut, planifier, approuver, générer, appliquer et vérifier"]
+        }
+      ],
+      "last_result": "CLI documentée et parcours plan -> approbation -> proposition -> application confirmée -> vérification exact allowlist implémentés. Aucun appel fournisseur réel effectué."
     }
   ]
 }

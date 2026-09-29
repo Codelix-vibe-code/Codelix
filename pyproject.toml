@@ -10,6 +10,9 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = []
 
+[project.scripts]
+codelix = "codelix.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
