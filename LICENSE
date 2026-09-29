@@ -2,43 +2,116 @@
 
 **Copyright © 2026 Codelix-vibe-code. Tous droits réservés.**
 
-Le logiciel **Codelix** peut être utilisé par des tiers, sous réserve des conditions de la présente licence.
+Le logiciel **Codelix** peut être utilisé par des tiers sous réserve des conditions de la présente licence.
 
-## Autorisation d'utilisation
+## 1. Autorisation d'utilisation
 
-L’utilisation de Codelix, y compris à des fins personnelles, professionnelles ou commerciales, est autorisée. Cette autorisation ne confère aucun droit de copier, modifier, réutiliser ou redistribuer le code source de Codelix.
+L’utilisation de Codelix est autorisée gratuitement à des fins personnelles, éducatives, expérimentales et professionnelles internes.
 
-L'utilisation de Codelix en tant que logiciel est autorisée.
+Une entreprise peut notamment utiliser Codelix dans le cadre de ses propres activités commerciales, y compris pour :
 
-Cette autorisation permet notamment d'exécuter et d'utiliser Codelix pour ses fonctionnalités prévues.
+- développer ses propres logiciels ;
+- automatiser ses processus internes ;
+- assister ses équipes de développement ;
+- utiliser Codelix avec ses propres clés API ;
+- déployer Codelix sur ses propres machines ou serveurs internes.
 
-## Restrictions concernant le code source
+L'autorisation d'utilisation interne demeure valable même lorsque l'entreprise exerce une activité commerciale ou génère des revenus grâce à son activité.
+
+Cette autorisation permet d'utiliser et d'exécuter Codelix pour ses fonctionnalités prévues. Elle ne constitue pas une cession de propriété intellectuelle et ne confère aucun droit général de copier, modifier, redistribuer ou commercialiser le code source.
+
+## 2. Restrictions concernant le code source
 
 Le code source de Codelix reste la propriété exclusive du titulaire des droits. Sauf autorisation écrite préalable du titulaire des droits, il est interdit de :
 
 - copier tout ou partie substantielle du code source ;
-- modifier, adapter ou transformer le code source ;
-- créer une œuvre dérivée à partir du code source ;
-- réutiliser tout ou partie du code source dans un autre logiciel ou projet ;
-- intégrer tout ou partie du code source dans un autre produit ou service ;
+- modifier, adapter ou transformer le code source en vue d'une redistribution, d'une commercialisation ou d'une mise à disposition à des tiers ;
+- créer une œuvre dérivée destinée à être distribuée ou commercialisée ;
+- réutiliser tout ou partie du code source dans un autre logiciel ou projet destiné à être distribué à des tiers ;
+- intégrer tout ou partie du code source dans un autre produit ou service destiné à des tiers ;
 - redistribuer, republier ou mettre à disposition le code source ou une version modifiée de celui-ci ;
 - vendre, louer, sous-licencier ou transférer le code source ;
-- utiliser le code source pour développer un produit concurrent ou dérivé.
+- utiliser le code source pour développer un produit concurrent ou dérivé destiné à être distribué ou commercialisé.
 
-L'utilisation du logiciel ne constitue pas une cession des droits d'auteur et ne confère aucun droit de propriété sur le code source.
+## 3. Modification pour usage interne
 
-## Contributions et versions modifiées
+Une modification locale de Codelix peut être effectuée uniquement pour les besoins personnels ou internes de l'utilisateur, sans redistribution ou mise à disposition de la modification à des tiers.
 
-Aucune modification du code source n'est autorisée sans accord écrit préalable du titulaire des droits.
+Une entreprise peut donc adapter Codelix à son environnement interne, mais cette modification ne peut pas, sans autorisation écrite préalable :
+
+- être distribuée à ses clients ou à des tiers ;
+- être intégrée dans un produit vendu ou distribué à des tiers ;
+- être proposée sous forme de SaaS ou de service accessible à des tiers ;
+- être commercialisée comme logiciel ou produit dérivé.
+
+## 4. Produits et services tiers
+
+Sans autorisation écrite préalable ou licence commerciale, il est interdit d'intégrer Codelix, ou une partie substantielle de son code source, dans :
+
+- un logiciel vendu ou distribué à des tiers ;
+- une application commerciale ;
+- une plateforme ;
+- un produit professionnel ;
+- un produit SaaS ;
+- une solution fournie à des clients ;
+- un service accessible à des tiers.
+
+L'utilisation interne de Codelix pour développer un produit appartenant à l'entreprise reste autorisée. En revanche, l'intégration de Codelix dans le produit final distribué à des clients nécessite une autorisation préalable.
+
+## 5. SaaS et services en ligne
+
+L'utilisation interne de Codelix sur les serveurs d'une organisation est autorisée.
+
+En revanche, sauf autorisation écrite préalable ou licence commerciale, il est interdit de proposer Codelix ou une version dérivée comme service à des tiers, notamment sous forme de :
+
+- SaaS ;
+- API ;
+- plateforme en ligne ;
+- service d'orchestration ;
+- service de génération de code ;
+- service hébergé pour des clients.
+
+## 6. Redistribution et commercialisation
+
+Toute redistribution, revente ou commercialisation de Codelix, d'une version modifiée ou d'un produit intégrant Codelix nécessite une autorisation écrite préalable.
+
+Une licence commerciale distincte peut accorder, selon contrat, certains droits de modification, intégration, redistribution, hébergement ou commercialisation.
+
+## 7. Contributions et versions modifiées
+
+Aucune modification destinée à être publiée, redistribuée ou commercialisée n'est autorisée sans accord écrit préalable du titulaire des droits.
 
 Toute autorisation exceptionnelle devra être accordée par écrit et préciser son périmètre.
 
-## Nom et identité du projet
+Les conditions applicables aux contributions communautaires pourront faire l'objet d'un document séparé.
+
+## 8. Nom et identité du projet
 
 Le nom « Codelix », ses logos, marques et éléments graphiques ne peuvent pas être utilisés de manière à suggérer une affiliation, une approbation ou une propriété qui n'existe pas.
 
-## Dépôt GitHub
+Le droit d'utiliser le logiciel ne constitue pas un droit d'utiliser la marque Codelix dans un produit ou service tiers.
 
-La présence du code source dans un dépôt GitHub public ne constitue pas une autorisation de copier, modifier, réutiliser ou redistribuer ce code. Les conditions de GitHub applicables au dépôt restent également en vigueur.
+## 9. Dépôt GitHub
 
-**Cette licence est un document général d'information et ne constitue pas un avis juridique.**
+La présence du code source dans un dépôt GitHub public ne constitue pas une autorisation de copier, modifier, réutiliser ou redistribuer ce code au-delà des droits expressément accordés par la présente licence.
+
+Les conditions de GitHub applicables au dépôt restent également en vigueur.
+
+## 10. Licence commerciale
+
+Le titulaire des droits peut accorder, à sa discrétion, une licence commerciale ou une autorisation écrite permettant notamment :
+
+- la modification du code ;
+- la redistribution ;
+- l'intégration dans un produit tiers ;
+- la création d'un SaaS ;
+- l'hébergement pour des clients ;
+- la commercialisation d'une solution basée sur Codelix.
+
+Les conditions, limites, durée et éventuelle contrepartie financière de cette autorisation sont définies dans le contrat ou la licence commerciale correspondante.
+
+## 11. Absence de transfert de propriété
+
+L'utilisation de Codelix, y compris son utilisation professionnelle interne, ne constitue pas une cession des droits d'auteur et ne confère aucun droit de propriété sur le code source.
+
+**Cette licence est un document général et doit être revue par un professionnel du droit avant d'être utilisée comme licence définitive.**
