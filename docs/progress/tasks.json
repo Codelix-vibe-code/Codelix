@@ -1,14 +1,17 @@
 {
   "schema_version": "1.0",
   "project_id": "codelix",
-  "updated_at": "2026-09-29T14:04:35Z",
+  "updated_at": "2026-09-29T17:21:46Z",
   "tasks": [
     {
       "id": "phase-0-audit",
       "title": "Audit du dépôt neuf et proposition d’architecture",
       "status": "done",
       "dependencies": [],
-      "acceptance_criteria": ["Dépôt GitHub privé créé", "État initial audité sans modifier les fichiers"],
+      "acceptance_criteria": [
+        "Dépôt GitHub privé créé",
+        "État initial audité sans modifier les fichiers"
+      ],
       "attempts": 0,
       "files_modified": [],
       "verifications": [],
@@ -18,10 +21,37 @@
       "id": "phase-1-foundations",
       "title": "Contrats JSON, configuration et suivi des tâches",
       "status": "done",
-      "dependencies": ["phase-0-audit"],
-      "acceptance_criteria": ["Contrats Planner et Coder définis", "Configuration locale validée", "Progression validée et stockée en un seul endroit", "Tests couvrant les validations"],
+      "dependencies": [
+        "phase-0-audit"
+      ],
+      "acceptance_criteria": [
+        "Contrats Planner et Coder définis",
+        "Configuration locale validée",
+        "Progression validée et stockée en un seul endroit",
+        "Tests couvrant les validations"
+      ],
       "attempts": 0,
-      "files_modified": [".env.example", ".gitignore", "PROJECT_STATUS.md", "README.md", "config.example.toml", "docs/progress/tasks.json", "pyproject.toml", "schemas/coder-v1.schema.json", "schemas/planner-v1.schema.json", "schemas/progress-v1.schema.json", "sessions.md", "src/codelix/__init__.py", "src/codelix/config.py", "src/codelix/contracts.py", "src/codelix/progress.py", "tests/test_config.py", "tests/test_contracts.py", "tests/test_progress.py", "tests/test_schemas.py"],
+      "files_modified": [
+        ".env.example",
+        ".gitignore",
+        "PROJECT_STATUS.md",
+        "README.md",
+        "config.example.toml",
+        "docs/progress/tasks.json",
+        "pyproject.toml",
+        "schemas/coder-v1.schema.json",
+        "schemas/planner-v1.schema.json",
+        "schemas/progress-v1.schema.json",
+        "sessions.md",
+        "src/codelix/__init__.py",
+        "src/codelix/config.py",
+        "src/codelix/contracts.py",
+        "src/codelix/progress.py",
+        "tests/test_config.py",
+        "tests/test_contracts.py",
+        "tests/test_progress.py",
+        "tests/test_schemas.py"
+      ],
       "verifications": [
         {
           "command": "python -B -m unittest discover -s tests -v",
@@ -29,7 +59,12 @@
           "summary": "28 tests réussis avec Python 3.12.14 ; aucun test échoué.",
           "errors": [],
           "execution_id": "2026-09-29T13:50:20Z",
-          "acceptance_criteria": ["Contrats Planner et Coder définis", "Configuration locale validée", "Progression validée et stockée en un seul endroit", "Tests couvrant les validations"]
+          "acceptance_criteria": [
+            "Contrats Planner et Coder définis",
+            "Configuration locale validée",
+            "Progression validée et stockée en un seul endroit",
+            "Tests couvrant les validations"
+          ]
         }
       ],
       "last_result": "Fondations implémentées ; 28 tests réussis."
@@ -38,10 +73,34 @@
       "id": "phase-2-providers-routing",
       "title": "Fournisseurs IA et routage",
       "status": "needs_review",
-      "dependencies": ["phase-1-foundations"],
-      "acceptance_criteria": ["Adaptateurs Gemini, NVIDIA et Groq conformes à leurs documentations officielles", "Chargement local du fichier .env sans écrasement des variables du processus", "Fallback et erreurs bornés testés", "Appel réel vérifié avec modèle et quota autorisés"],
+      "dependencies": [
+        "phase-1-foundations"
+      ],
+      "acceptance_criteria": [
+        "Adaptateurs Gemini, NVIDIA et Groq conformes à leurs documentations officielles",
+        "Chargement local du fichier .env sans écrasement des variables du processus",
+        "Fallback et erreurs bornés testés",
+        "Appel réel vérifié avec modèle et quota autorisés"
+      ],
       "attempts": 0,
-      "files_modified": [".env.example", "README.md", "config.example.toml", "docs/providers.md", "docs/progress/tasks.json", "PROJECT_STATUS.md", "sessions.md", "src/codelix/config.py", "src/codelix/providers/__init__.py", "src/codelix/providers/errors.py", "src/codelix/providers/gemini.py", "src/codelix/providers/groq.py", "src/codelix/providers/nvidia.py", "src/codelix/providers/openai_compatible.py", "src/codelix/providers/router.py", "tests/test_provider.py"],
+      "files_modified": [
+        ".env.example",
+        "README.md",
+        "config.example.toml",
+        "docs/providers.md",
+        "docs/progress/tasks.json",
+        "PROJECT_STATUS.md",
+        "sessions.md",
+        "src/codelix/config.py",
+        "src/codelix/providers/__init__.py",
+        "src/codelix/providers/errors.py",
+        "src/codelix/providers/gemini.py",
+        "src/codelix/providers/groq.py",
+        "src/codelix/providers/nvidia.py",
+        "src/codelix/providers/openai_compatible.py",
+        "src/codelix/providers/router.py",
+        "tests/test_provider.py"
+      ],
       "verifications": [
         {
           "command": "python -B -m unittest discover -s tests -v",
@@ -49,19 +108,89 @@
           "summary": "44 tests réussis avec Python 3.12.14. Les requêtes HTTP sont simulées ; aucun appel fournisseur n'a été envoyé. Les trois variables du .env local ont été détectées sans afficher leurs valeurs.",
           "errors": [],
           "execution_id": "2026-09-29T14:04:35Z",
-          "acceptance_criteria": ["Adaptateurs Gemini, NVIDIA et Groq conformes à leurs documentations officielles", "Chargement local du fichier .env sans écrasement des variables du processus", "Fallback et erreurs bornés testés"]
+          "acceptance_criteria": [
+            "Adaptateurs Gemini, NVIDIA et Groq conformes à leurs documentations officielles",
+            "Chargement local du fichier .env sans écrasement des variables du processus",
+            "Fallback et erreurs bornés testés"
+          ]
+        },
+        {
+          "command": "GET https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+          "exit_code": 0,
+          "summary": "HTTP 200 avec la clé Gemini restante ; gemini-3.8-flash et gemini-3.7-flash listés. Valeur de clé non affichée.",
+          "errors": [],
+          "execution_id": "2026-09-29T16:09:32Z",
+          "acceptance_criteria": [
+            "Appel réel vérifié avec modèle et quota autorisés"
+          ]
+        },
+        {
+          "command": "Gemini Interactions minimal — gemini-3.8-flash",
+          "exit_code": 1,
+          "summary": "HTTP 503 après environ 24,45 s ; aucune réponse exploitable. Un essai, pas de plan enregistré.",
+          "errors": [
+            "Gemini indisponible (HTTP 503)."
+          ],
+          "execution_id": "2026-09-29T16:09:32Z",
+          "acceptance_criteria": [
+            "Appel réel vérifié avec modèle et quota autorisés"
+          ]
+        },
+        {
+          "command": "GET https://integrate.api.nvidia.com/v1/models",
+          "exit_code": 0,
+          "summary": "HTTP 200 ; catalogue accessible.",
+          "errors": [],
+          "execution_id": "2026-09-29T16:09:32Z",
+          "acceptance_criteria": [
+            "Appel réel vérifié avec modèle et quota autorisés"
+          ]
+        },
+        {
+          "command": "POST https://integrate.api.nvidia.com/v1/chat/completions — z-ai/glm-5.3",
+          "exit_code": 1,
+          "summary": "Timeout après environ 300,2 s sans statut HTTP ; aucun retry dans cet essai isolé.",
+          "errors": [
+            "NetworkError: timeout."
+          ],
+          "execution_id": "2026-09-29T16:09:32Z",
+          "acceptance_criteria": [
+            "Appel réel vérifié avec modèle et quota autorisés"
+          ]
+        },
+        {
+          "command": "GET https://api.groq.com/openai/v1/models",
+          "exit_code": 1,
+          "summary": "HTTP 403 ; accès au catalogue non confirmé.",
+          "errors": [
+            "HTTP 403."
+          ],
+          "execution_id": "2026-09-29T16:09:32Z",
+          "acceptance_criteria": [
+            "Appel réel vérifié avec modèle et quota autorisés"
+          ]
         }
       ],
-      "last_result": "Adaptateurs Gemini, NVIDIA et Groq intégrés ; .env local détecté et ignoré par Git ; 44 tests réussis. L'appel réel reste à valider après choix d'un modèle et examen du quota."
+      "last_result": "Adaptateurs et routage couverts par tests simulés. Tests réels non génératifs : Gemini GET /v1beta/models HTTP 200 avec gemini-3.8-flash et gemini-3.7-flash listés ; NVIDIA GET /v1/models HTTP 200 ; Groq GET /models HTTP 403. Génération minimale Gemini : HTTP 503. NVIDIA POST /chat/completions : timeout ~300 s sans statut HTTP. Phase en revue, aucun succès de génération confirmé."
     },
     {
       "id": "phase-3-controlled-execution",
       "title": "Application contrôlée des propositions",
       "status": "done",
-      "dependencies": ["phase-2-providers-routing"],
-      "acceptance_criteria": ["Chemins dangereux refusés", "Aperçu en lecture seule puis application approuvée", "Conflits détectés et fichiers originaux sauvegardés", "Écritures atomiques avec restauration en cas d'échec"],
+      "dependencies": [
+        "phase-2-providers-routing"
+      ],
+      "acceptance_criteria": [
+        "Chemins dangereux refusés",
+        "Aperçu en lecture seule puis application approuvée",
+        "Conflits détectés et fichiers originaux sauvegardés",
+        "Écritures atomiques avec restauration en cas d'échec"
+      ],
       "attempts": 0,
-      "files_modified": ["src/codelix/execution.py", "tests/test_execution.py"],
+      "files_modified": [
+        "src/codelix/execution.py",
+        "tests/test_execution.py"
+      ],
       "verifications": [
         {
           "command": "python -B -m unittest discover -s tests -v",
@@ -69,7 +198,12 @@
           "summary": "50 tests réussis avec Python 3.12.14, sans test ignoré dans le dossier source du projet.",
           "errors": [],
           "execution_id": "2026-09-29T14:16:32Z",
-          "acceptance_criteria": ["Chemins dangereux refusés", "Aperçu en lecture seule puis application approuvée", "Conflits détectés et fichiers originaux sauvegardés", "Écritures atomiques avec restauration en cas d'échec"]
+          "acceptance_criteria": [
+            "Chemins dangereux refusés",
+            "Aperçu en lecture seule puis application approuvée",
+            "Conflits détectés et fichiers originaux sauvegardés",
+            "Écritures atomiques avec restauration en cas d'échec"
+          ]
         }
       ],
       "last_result": "Exécution contrôlée implémentée et couverte ; les 50 tests, y compris le refus d'un lien symbolique, réussissent dans le dossier source du projet."
@@ -78,10 +212,20 @@
       "id": "phase-4-verifier",
       "title": "Vérification déterministe et boucle de correction",
       "status": "done",
-      "dependencies": ["phase-3-controlled-execution"],
-      "acceptance_criteria": ["Commandes autorisées uniquement, sans shell", "Code de sortie, sortie utile, critères et durée consignés", "Sorties sensibles masquées", "Deux corrections au plus par tâche"],
+      "dependencies": [
+        "phase-3-controlled-execution"
+      ],
+      "acceptance_criteria": [
+        "Commandes autorisées uniquement, sans shell",
+        "Code de sortie, sortie utile, critères et durée consignés",
+        "Sorties sensibles masquées",
+        "Deux corrections au plus par tâche"
+      ],
       "attempts": 0,
-      "files_modified": ["src/codelix/verifier.py", "tests/test_verifier.py"],
+      "files_modified": [
+        "src/codelix/verifier.py",
+        "tests/test_verifier.py"
+      ],
       "verifications": [
         {
           "command": "python -B -m unittest discover -s tests -v",
@@ -89,7 +233,12 @@
           "summary": "55 tests réussis avec Python 3.12.14 dans l'environnement de développement ; un test symlink ignoré dans ce checkout.",
           "errors": [],
           "execution_id": "2026-09-29T14:16:32Z",
-          "acceptance_criteria": ["Commandes autorisées uniquement, sans shell", "Code de sortie, sortie utile, critères et durée consignés", "Sorties sensibles masquées", "Deux corrections au plus par tâche"]
+          "acceptance_criteria": [
+            "Commandes autorisées uniquement, sans shell",
+            "Code de sortie, sortie utile, critères et durée consignés",
+            "Sorties sensibles masquées",
+            "Deux corrections au plus par tâche"
+          ]
         }
       ],
       "last_result": "Vérificateur strict, sortie filtrée et limite de corrections de deux implémentés ; commandes réellement lancées uniquement si présentes dans la liste autorisée."
@@ -98,10 +247,25 @@
       "id": "phase-5-cli-stabilization",
       "title": "CLI, documentation et stabilisation",
       "status": "done",
-      "dependencies": ["phase-4-verifier"],
-      "acceptance_criteria": ["CLI documentée pour initialiser, lire le statut, planifier, approuver, générer, appliquer et vérifier", "Plan et proposition validés avec contrats JSON", "Approbation demandée avant intégration d'un plan et écriture de fichiers", "Parcours de démonstration sans appel IA par défaut"],
+      "dependencies": [
+        "phase-4-verifier"
+      ],
+      "acceptance_criteria": [
+        "CLI documentée pour initialiser, lire le statut, planifier, approuver, générer, appliquer et vérifier",
+        "Plan et proposition validés avec contrats JSON",
+        "Approbation demandée avant intégration d'un plan et écriture de fichiers",
+        "Parcours de démonstration sans appel IA par défaut"
+      ],
       "attempts": 0,
-      "files_modified": ["README.md", "pyproject.toml", "src/codelix/__main__.py", "src/codelix/cli.py", "src/codelix/workflow.py", "tests/test_cli.py", "tests/test_workflow.py"],
+      "files_modified": [
+        "README.md",
+        "pyproject.toml",
+        "src/codelix/__main__.py",
+        "src/codelix/cli.py",
+        "src/codelix/workflow.py",
+        "tests/test_cli.py",
+        "tests/test_workflow.py"
+      ],
       "verifications": [
         {
           "command": "python -B -m unittest discover -s tests -v",
@@ -109,7 +273,12 @@
           "summary": "66 tests réussis avec Python 3.12.14 dans le checkout de développement ; un test symlink ignoré dans ce checkout.",
           "errors": [],
           "execution_id": "2026-09-29T14:27:31Z",
-          "acceptance_criteria": ["CLI documentée pour initialiser, lire le statut, planifier, approuver, générer, appliquer et vérifier", "Plan et proposition validés avec contrats JSON", "Approbation demandée avant intégration d'un plan et écriture de fichiers", "Parcours de démonstration sans appel IA par défaut"]
+          "acceptance_criteria": [
+            "CLI documentée pour initialiser, lire le statut, planifier, approuver, générer, appliquer et vérifier",
+            "Plan et proposition validés avec contrats JSON",
+            "Approbation demandée avant intégration d'un plan et écriture de fichiers",
+            "Parcours de démonstration sans appel IA par défaut"
+          ]
         },
         {
           "command": "python -B -m codelix --help",
@@ -117,10 +286,276 @@
           "summary": "L'aide CLI affiche les 8 commandes disponibles.",
           "errors": [],
           "execution_id": "2026-09-29T14:27:31Z",
-          "acceptance_criteria": ["CLI documentée pour initialiser, lire le statut, planifier, approuver, générer, appliquer et vérifier"]
+          "acceptance_criteria": [
+            "CLI documentée pour initialiser, lire le statut, planifier, approuver, générer, appliquer et vérifier"
+          ]
         }
       ],
       "last_result": "CLI documentée et parcours plan -> approbation -> proposition -> application confirmée -> vérification exact allowlist implémentés. Aucun appel fournisseur réel effectué."
+    },
+    {
+      "id": "phase-6-ui-01-shell",
+      "title": "Interface graphique — UI-01 Shell",
+      "status": "done",
+      "dependencies": [
+        "phase-5-cli-stabilization"
+      ],
+      "acceptance_criteria": [
+        "Shell desktop avec navigation, header, workspace, panneau contextuel et barre d’état",
+        "État projet et routes lus depuis les fichiers réels",
+        "API locale en lecture seule, sans appel provider ni écriture",
+        "Navigation clavier et adaptation petite largeur"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "README.md",
+        "pyproject.toml",
+        "src/codelix/cli.py",
+        "src/codelix/ui.py",
+        "src/codelix/ui_assets/index.html",
+        "src/codelix/ui_assets/app.css",
+        "src/codelix/ui_assets/app.js",
+        "src/codelix/ui_assets/logo.svg",
+        "tests/test_ui.py"
+      ],
+      "verifications": [
+        {
+          "command": "python -B -m unittest discover -s tests -p test_ui.py -v",
+          "exit_code": 0,
+          "summary": "3 tests ciblés réussis : snapshot réel, données minimisées et absence d’écriture sur l’API UI.",
+          "errors": [],
+          "execution_id": "2026-09-29T16:09:32Z",
+          "acceptance_criteria": [
+            "API locale en lecture seule, sans appel provider ni écriture"
+          ]
+        },
+        {
+          "command": "python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "69 tests réussis.",
+          "errors": [],
+          "execution_id": "2026-09-29T16:09:32Z",
+          "acceptance_criteria": [
+            "Shell UI-01 sans régression"
+          ]
+        },
+        {
+          "command": "python -B -m codelix --help",
+          "exit_code": 0,
+          "summary": "Aide CLI affiche la commande ui parmi les commandes.",
+          "errors": [],
+          "execution_id": "2026-09-29T16:09:32Z",
+          "acceptance_criteria": [
+            "Shell UI-01 accessible depuis la CLI"
+          ]
+        }
+      ],
+      "last_result": "Shell local servi sur loopback, avec navigation et état projet réel. Les vues ont ensuite été raccordées aux composants Codelix ; les appels modèle, commandes et écritures sont disponibles uniquement après action explicite."
+    },
+    {
+      "id": "phase-6-ui-02-dashboard",
+      "title": "Interface graphique — UI-02 Dashboard",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-01-shell"
+      ],
+      "acceptance_criteria": [
+        "Statistiques du projet calculées depuis la progression réelle",
+        "État Git et des vérifications réellement enregistrées visibles",
+        "Activité récente dérivée des vérifications persistées uniquement",
+        "Aucun statut d’agent ou événement non suivi présenté comme réel"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "PROJECT_STATUS.md",
+        "docs/progress/tasks.json",
+        "src/codelix/ui.py",
+        "src/codelix/ui_assets/app.js",
+        "src/codelix/ui_assets/app.css"
+      ],
+      "verifications": [],
+      "last_result": "Dashboard connecté aux statistiques du projet, à Git et aux vérifications persistées. Les événements Planner/Coder et les agents détaillés se consultent dans Chat, Agents et History."
+    },
+    {
+      "id": "phase-6-ui-03-chat",
+      "title": "Interface graphique — UI-03 Chat",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-02-dashboard"
+      ],
+      "acceptance_criteria": [
+        "Conversation, plan en attente, propositions reliés à l’état sauvegardé"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/codelix/ui_actions.py",
+        "src/codelix/ui.py",
+        "src/codelix/ui_assets/app.js"
+      ],
+      "verifications": [],
+      "last_result": "Chat Planner relié au formulaire explicite, plan sauvegardé, détails de tâches, approbation et refus. Aucun test ni appel fournisseur n’a été lancé lors de cette implémentation."
+    },
+    {
+      "id": "phase-6-ui-04-tasks",
+      "title": "Interface graphique — UI-04 Tasks",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-02-dashboard"
+      ],
+      "acceptance_criteria": [
+        "Tâches réelles affichées avec leur état, dépendances, critères et fichiers modifiés"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/codelix/ui.py",
+        "src/codelix/ui_assets/app.js"
+      ],
+      "verifications": [],
+      "last_result": "Tableau des tâches issu de ProgressStore ; dépendances, critères, fichiers, rôles et génération de proposition après approbation. Aucun test ni appel fournisseur n’a été lancé lors de cette implémentation."
+    },
+    {
+      "id": "phase-6-ui-05-agents-models",
+      "title": "Interface graphique — UI-05 Agents / Models",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-02-dashboard"
+      ],
+      "acceptance_criteria": [
+        "Rôles configurés et routes de modèles réelles affichés avec disponibilité non vérifiée"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/codelix/ui.py",
+        "src/codelix/ui_assets/app.js",
+        "src/codelix/ui_assets/app.css"
+      ],
+      "verifications": [],
+      "last_result": "Cartes Planner/Coder/Tester/Verifier avec progression calculée depuis l’état réel ; routes affichées séparément avec disponibilité non vérifiée. Aucun test ni appel fournisseur n’a été lancé lors de cette implémentation."
+    },
+    {
+      "id": "phase-6-ui-06-files-changes",
+      "title": "Interface graphique — UI-06 Files / Changes",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-02-dashboard"
+      ],
+      "acceptance_criteria": [
+        "Arborescence filtrée des secrets et propositions de changements réelles affichées"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/codelix/ui.py",
+        "src/codelix/ui_actions.py",
+        "src/codelix/ui_assets/app.js"
+      ],
+      "verifications": [],
+      "last_result": "Explorateur filtré et aperçus sécurisés ; diff, empreintes, confirmation et application contrôlée via ExecutionManager. Aucun test ni appel fournisseur n’a été lancé lors de cette implémentation."
+    },
+    {
+      "id": "phase-6-ui-07-terminal-verification",
+      "title": "Interface graphique — UI-07 Terminal / Verification",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-02-dashboard"
+      ],
+      "acceptance_criteria": [
+        "Commandes autorisées et résultats du vérificateur réellement persistés affichés"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/codelix/ui_actions.py",
+        "src/codelix/ui_assets/app.js"
+      ],
+      "verifications": [],
+      "last_result": "Commandes de l’allowlist visibles et exécutées uniquement après confirmation ; résultats persistés affichés. Aucun test ni appel fournisseur n’a été lancé lors de cette implémentation."
+    },
+    {
+      "id": "phase-6-ui-08-git-history",
+      "title": "Interface graphique — UI-08 Git / History",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-02-dashboard"
+      ],
+      "acceptance_criteria": [
+        "Branche, état du dépôt, commits et événements enregistrés affichés"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/codelix/ui.py",
+        "src/codelix/ui_actions.py",
+        "src/codelix/ui_assets/app.js"
+      ],
+      "verifications": [],
+      "last_result": "Branche, état Git, commits et événements UI persistés affichés en consultation. Aucun test ni appel fournisseur n’a été lancé lors de cette implémentation."
+    },
+    {
+      "id": "phase-6-ui-09-settings",
+      "title": "Interface graphique — UI-09 Settings",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-02-dashboard"
+      ],
+      "acceptance_criteria": [
+        "Configuration non secrète affichée sans exposer les valeurs des clés"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/codelix/ui.py",
+        "src/codelix/ui_assets/app.js"
+      ],
+      "verifications": [],
+      "last_result": "Configuration non secrète, réglages d’apparence locaux et garde-fous UI affichés. Aucun test ni appel fournisseur n’a été lancé lors de cette implémentation."
+    },
+    {
+      "id": "phase-6-ui-readonly-views",
+      "title": "Raccordement des vues aux données réelles",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-02-dashboard"
+      ],
+      "acceptance_criteria": [
+        "Les vues de consultation lisent tâches, routes, fichiers filtrés, propositions, vérifications et Git depuis les données du projet",
+        "Les secrets sont exclus des snapshots et les aperçus refusent les fichiers sensibles ou les liens symboliques",
+        "Aucun appel modèle n’est lancé automatiquement ; les actions d’écriture exigent une approbation explicite"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "docs/progress/tasks.json",
+        "src/codelix/ui.py",
+        "src/codelix/ui_assets/index.html",
+        "src/codelix/ui_assets/app.js",
+        "src/codelix/ui_assets/app.css"
+      ],
+      "verifications": [],
+      "last_result": "Vues reliées au projet réel ; les actions interactives sont raccordées au moteur existant et restent explicites."
+    },
+    {
+      "id": "phase-6-ui-10-polish",
+      "title": "Interface graphique — UI-10 Finition et accessibilité",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-03-chat",
+        "phase-6-ui-04-tasks",
+        "phase-6-ui-05-agents-models",
+        "phase-6-ui-06-files-changes",
+        "phase-6-ui-07-terminal-verification",
+        "phase-6-ui-08-git-history",
+        "phase-6-ui-09-settings"
+      ],
+      "acceptance_criteria": [
+        "Palette du logo, surfaces glass et halos néon discrets cohérents dans les vues",
+        "Cartes agents adaptatives avec barre de progression accessible et états réels",
+        "Préférences de mouvement réduit et de transparence respectées",
+        "Navigation clavier, libellés d’état et actions explicites conservés"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/codelix/ui_assets/index.html",
+        "src/codelix/ui_assets/app.js",
+        "src/codelix/ui_assets/app.css"
+      ],
+      "verifications": [],
+      "last_result": "Finition UI intégrée ; validations statiques Python, JavaScript, TOML, JSON et git diff --check réussies. La feuille CSS locale répond HTTP 200 avec les règles Files mises à jour. Aucun test ou appel IA lancé."
     }
   ]
 }

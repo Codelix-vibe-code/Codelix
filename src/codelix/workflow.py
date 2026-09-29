@@ -81,7 +81,10 @@ class CodelixWorkflow:
             "Si verification_feedback est présent, corrige les erreurs utiles sans ignorer les critères. "
             "Les changements seront affichés puis soumis à approbation humaine."
         )
-        raw = self.router.complete("coder", [
+        role = task.get("role", "coder")
+        if role not in {"coder", "tester"}:
+            raise WorkflowError("Le rôle doit être coder ou tester pour générer une proposition.")
+        raw = self.router.complete(role, [
             {"role": "system", "content": instructions},
             {"role": "user", "content": json.dumps({"task": task, "context_files": contexts}, ensure_ascii=False)},
         ])

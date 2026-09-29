@@ -16,5 +16,8 @@ codelix = "codelix.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+codelix = ["ui_assets/*"]
+
 [tool.unittest]
 start-directory = "tests"

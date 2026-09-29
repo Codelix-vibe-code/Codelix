@@ -18,6 +18,7 @@ from .verifier import VerificationError, Verifier
 from .providers.router import build_router
 from .workflow import CodelixWorkflow, WorkflowError
 from .contracts import validate_planner_output, validate_relative_path
+from .ui import run_ui
 
 
 def _progress_path(project: Path) -> Path:
@@ -53,6 +54,9 @@ def _parser() -> argparse.ArgumentParser:
     apply_cmd.add_argument("proposal", type=Path)
     apply_cmd.add_argument("--project", type=Path, default=Path.cwd())
     apply_cmd.add_argument("--task-id", required=True)
+    ui = commands.add_parser("ui", help="Ouvrir le cockpit Codelix local")
+    ui.add_argument("--project", type=Path, default=Path.cwd())
+    ui.add_argument("--port", type=int, default=0, help="Port local (0 = port libre automatique)")
     return parser
 
 
@@ -284,6 +288,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.action == "init":
             return _init(args.project.resolve())
         project = args.project.resolve(strict=True)
+        if args.action == "ui":
+            if not 0 <= args.port <= 65535:
+                raise ValueError("Le port doit être compris entre 0 et 65535.")
+            run_ui(project, port=args.port)
+            return 0
         if args.action == "status":
             return _status(project)
         if args.action == "config":

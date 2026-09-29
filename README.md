@@ -54,3 +54,21 @@ Ajoutez uniquement des commandes de vérification adaptées et approuvées dans
 ces commandes et après avoir configuré des candidats dans `[models]`. `plan`
 enregistre un brouillon; `approve-plan` affiche les tâches et critères puis
 demande une confirmation. `code` valide le JSON retourné et n'écrit aucun fichier.
+
+
+## Interface graphique locale
+
+Depuis la racine du projet, lancez :
+
+```powershell
+python -m codelix ui
+```
+
+Codelix ouvre son interface sur `127.0.0.1`. Le tableau de bord lit l’état réel du
+projet. Planner, Coder et Tester ne sont appelés qu’après une action explicite.
+Un plan doit être approuvé avant l’ajout des tâches ; les propositions sont
+présentées en diff et chaque application demande une approbation distincte.
+L’onglet Verification n’exécute que les commandes de la liste autorisée, après
+confirmation. Files masque les secrets et n’ouvre que des fichiers texte UTF-8
+limités en taille. Git est consultatif : l’interface ne crée pas de commit ni de
+branche. Aucune clé API n’est affichée. Arrêtez le serveur avec `Ctrl+C`.

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#05050A">
+  <title>Codelix — Workspace</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#dashboard" aria-label="Codelix dashboard">
+        <img src="/logo.svg" alt="" class="brand-mark">
+        <span>CODELIX</span>
+      </a>
+      <div class="project-identity">
+        <span class="project-name" id="project-name">Chargement du projet…</span>
+        <span class="separator">/</span>
+        <span class="branch" id="branch-name">branche inconnue</span>
+      </div>
+      <div class="top-actions">
+        <span class="connection" id="connection-state"><i></i><span>Connexion locale…</span></span>
+        <button class="icon-button" id="open-settings" type="button" aria-label="Paramètres" title="Ouvrir les paramètres">⚙</button>
+      </div>
+    </header>
+
+    <aside class="sidebar" aria-label="Navigation principale">
+      <div class="nav-group">
+        <span class="nav-label">ESPACE PROJET</span>
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Dashboard</span></button>
+        <button class="nav-item" data-view="chat"><span class="nav-icon">◈</span><span>Chat</span></button>
+        <button class="nav-item" data-view="tasks"><span class="nav-icon">▣</span><span>Tasks</span><span class="nav-count" id="attention-count" hidden>0</span></button>
+        <button class="nav-item" data-view="agents"><span class="nav-icon">◉</span><span>Agents</span></button>
+        <button class="nav-item" data-view="models"><span class="nav-icon">◫</span><span>Models</span></button>
+      </div>
+      <div class="nav-group">
+        <span class="nav-label">OUTILS</span>
+        <button class="nav-item" data-view="files"><span class="nav-icon">⌘</span><span>Files</span></button>
+        <button class="nav-item" data-view="changes"><span class="nav-icon">Δ</span><span>Changes</span></button>
+        <button class="nav-item" data-view="terminal"><span class="nav-icon">&gt;_</span><span>Terminal</span></button>
+        <button class="nav-item" data-view="verification"><span class="nav-icon">✓</span><span>Verification</span></button>
+        <button class="nav-item" data-view="git"><span class="nav-icon">⑂</span><span>Git</span></button>
+        <button class="nav-item" data-view="history"><span class="nav-icon">◷</span><span>History</span></button>
+      </div>
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+        <div class="sidebar-note"><span class="note-dot"></span><span>Mode local · sur action</span></div>
+      </div>
+    </aside>
+
+    <div class="resize-handle resize-handle-left" data-resize="sidebar" role="separator" aria-label="Redimensionner la navigation" aria-controls="sidebar workspace" aria-orientation="vertical" tabindex="0"></div>
+    <main class="workspace" id="workspace" tabindex="-1">
+      <div class="workspace-heading">
+        <div>
+          <p class="eyebrow">COCKPIT DE DÉVELOPPEMENT</p>
+          <h1 id="view-title">Dashboard</h1>
+          <p class="subtitle" id="view-subtitle">Vue réelle du projet Codelix</p>
+        </div>
+        <span class="read-only-badge"><span></span> Actions à la demande</span>
+      </div>
+      <section class="content-panel" id="view-content" aria-live="polite">
+        <div class="loading-state"><span class="loader"></span><span>Lecture de l’état local…</span></div>
+      </section>
+    </main>
+
+    <div class="resize-handle resize-handle-right" data-resize="context" role="separator" aria-label="Redimensionner le panneau de contexte" aria-controls="workspace context-panel" aria-orientation="vertical" tabindex="0"></div>
+    <aside class="context-panel" id="context-panel" aria-label="Contexte du projet">
+      <div class="panel-heading"><h2>Contexte</h2><span class="panel-kicker">PROJET ACTIF</span></div>
+      <section class="context-card">
+        <span class="field-label">PROJET</span>
+        <strong id="context-project">—</strong>
+        <span class="muted" id="context-project-id">Identifiant —</span>
+      </section>
+      <section class="context-card">
+        <span class="field-label">ÉTAT GIT</span>
+        <strong id="context-git">Non disponible</strong>
+        <span class="muted" id="context-branch">Branche —</span>
+      </section>
+      <section class="context-card">
+        <span class="field-label">ROUTES CONFIGURÉES</span>
+        <strong id="context-routes">—</strong>
+        <span class="muted">Disponibilité des modèles non vérifiée ici</span>
+      </section>
+      <div class="context-footnote"><span class="shield">◇</span><span>Aucun appel IA ni écriture au chargement. Les modèles sont appelés uniquement après une action ; toute écriture exige une approbation.</span></div>
+    </aside>
+
+    <footer class="statusbar" aria-label="État du système">
+      <span class="status-item"><i class="status-dot idle" id="agent-planner-dot"></i>Planner <b id="agent-planner-state">—</b></span>
+      <span class="status-item"><i class="status-dot idle" id="agent-coder-dot"></i>Coder <b id="agent-coder-state">—</b></span>
+      <span class="status-item"><i class="status-dot idle" id="agent-tester-dot"></i>Tester <b id="agent-tester-state">—</b></span>
+      <span class="status-item"><i class="status-check">✓</i>Verifier <b id="agent-verifier-state">—</b></span>
+      <span class="status-spacer"></span>
+      <span class="status-item" id="status-task-count">0 tâche</span>
+      <span class="status-item" id="status-git">Git —</span>
+    </footer>
+  </div>
+</body>
+</html>
