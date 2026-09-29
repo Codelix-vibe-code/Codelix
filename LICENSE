@@ -2,21 +2,41 @@
 
 **Copyright © 2026 Codelix-vibe-code. Tous droits réservés.**
 
-Le logiciel **Codelix**, son code source, sa documentation et ses éléments associés sont des œuvres protégées par le droit d’auteur.
+Le logiciel **Codelix** peut être utilisé par des tiers, sous réserve des conditions de la présente licence.
 
-Aucune licence d’utilisation, de copie, de modification, de distribution, de sous-licence, de publication ou d’exploitation commerciale n’est accordée au public par la simple mise à disposition de ce dépôt.
+## Autorisation d'utilisation
 
-Sauf autorisation écrite préalable du titulaire des droits, il est interdit de :
-- utiliser le logiciel à des fins personnelles, professionnelles ou commerciales ;
-- copier ou redistribuer le code ou une partie substantielle du code ;
-- modifier, adapter ou créer des œuvres dérivées ;
-- publier, vendre, louer, sous-licencier ou intégrer le logiciel dans un autre produit ;
-- utiliser le nom, les marques ou les éléments graphiques de Codelix comme s’ils étaient autorisés.
+L'utilisation de Codelix en tant que logiciel est autorisée.
 
-L’accès public au dépôt GitHub ne constitue pas une autorisation d’utilisation du logiciel. Les droits d’auteur restent réservés au titulaire indiqué ci-dessus.
+Cette autorisation permet notamment d'exécuter et d'utiliser Codelix pour ses fonctionnalités prévues.
 
-Toute autorisation supplémentaire doit faire l’objet d’un accord écrit du titulaire des droits.
+## Restrictions concernant le code source
 
-**Important :** cette licence n’empêche pas GitHub d’appliquer ses propres conditions de service concernant l’hébergement et l’affichage d’un dépôt public. Pour rendre le dépôt réellement privé, il faut également régler sa visibilité GitHub sur privé.
+Le code source de Codelix reste la propriété exclusive du titulaire des droits. Sauf autorisation écrite préalable du titulaire des droits, il est interdit de :
 
-Cette licence est un document général et ne constitue pas un avis juridique.
+- copier tout ou partie substantielle du code source ;
+- modifier, adapter ou transformer le code source ;
+- créer une œuvre dérivée à partir du code source ;
+- réutiliser tout ou partie du code source dans un autre logiciel ou projet ;
+- intégrer tout ou partie du code source dans un autre produit ou service ;
+- redistribuer, republier ou mettre à disposition le code source ou une version modifiée de celui-ci ;
+- vendre, louer, sous-licencier ou transférer le code source ;
+- utiliser le code source pour développer un produit concurrent ou dérivé.
+
+L'utilisation du logiciel ne constitue pas une cession des droits d'auteur et ne confère aucun droit de propriété sur le code source.
+
+## Contributions et versions modifiées
+
+Aucune modification du code source n'est autorisée sans accord écrit préalable du titulaire des droits.
+
+Toute autorisation exceptionnelle devra être accordée par écrit et préciser son périmètre.
+
+## Nom et identité du projet
+
+Le nom « Codelix », ses logos, marques et éléments graphiques ne peuvent pas être utilisés de manière à suggérer une affiliation, une approbation ou une propriété qui n'existe pas.
+
+## Dépôt GitHub
+
+La présence du code source dans un dépôt GitHub public ne constitue pas une autorisation de copier, modifier, réutiliser ou redistribuer ce code. Les conditions de GitHub applicables au dépôt restent également en vigueur.
+
+**Cette licence est un document général d'information et ne constitue pas un avis juridique.**
