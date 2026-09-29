@@ -24,3 +24,7 @@ python -m unittest discover -s tests -v
 ```
 
 La suite est également compatible avec `pytest` lorsqu'il est installé.
+
+L'adaptateur Gemini et le format de configuration sont décrits dans
+[`docs/providers.md`](docs/providers.md). Aucun modèle n'est activé par défaut ;
+les identifiants et l'ordre des candidats sont choisis dans `codelix.toml`.

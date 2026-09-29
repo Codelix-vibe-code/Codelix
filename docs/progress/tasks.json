@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project_id": "codelix",
-  "updated_at": "2026-09-29T13:50:20Z",
+  "updated_at": "2026-09-29T14:04:35Z",
   "tasks": [
     {
       "id": "phase-0-audit",
@@ -37,13 +37,22 @@
     {
       "id": "phase-2-providers-routing",
       "title": "Fournisseurs IA et routage",
-      "status": "todo",
+      "status": "needs_review",
       "dependencies": ["phase-1-foundations"],
-      "acceptance_criteria": ["Au moins un adaptateur documenté", "Fallback et erreurs limités consignés"],
+      "acceptance_criteria": ["Adaptateur Gemini conforme à la documentation officielle", "Fallback et erreurs bornés testés", "Appel réel vérifié avec modèle et quota autorisés"],
       "attempts": 0,
-      "files_modified": [],
-      "verifications": [],
-      "last_result": null
+      "files_modified": ["README.md", "config.example.toml", "docs/providers.md", "docs/progress/tasks.json", "PROJECT_STATUS.md", "sessions.md", "src/codelix/providers/__init__.py", "src/codelix/providers/errors.py", "src/codelix/providers/gemini.py", "src/codelix/providers/router.py", "tests/test_provider.py"],
+      "verifications": [
+        {
+          "command": "python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "42 tests réussis avec Python 3.12.14. Les requêtes HTTP sont simulées ; aucun appel facturable n'a été envoyé.",
+          "errors": [],
+          "execution_id": "2026-09-29T14:04:35Z",
+          "acceptance_criteria": ["Adaptateur Gemini conforme à la documentation officielle", "Fallback et erreurs bornés testés"]
+        }
+      ],
+      "last_result": "Code et tests simulés prêts ; l'appel réel reste à valider après configuration d'un modèle et confirmation du quota disponible."
     },
     {
       "id": "phase-3-controlled-execution",

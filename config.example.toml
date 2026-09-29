@@ -7,10 +7,12 @@ correction_attempts = 2
 network_retries = 1
 
 [providers.gemini]
-base_url = ""
+base_url = "https://generativelanguage.googleapis.com/v1"
 api_key_env = "GEMINI_API_KEY"
 
 [models]
+# Les candidats sont ordonnés et au format "fournisseur:identifiant".
+# Exemple à activer après choix du modèle : planner = ["gemini:gemini-2.5-flash"]
 planner = []
 coder = []
 tester = []
