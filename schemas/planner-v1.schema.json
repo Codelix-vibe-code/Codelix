@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://codelix.dev/schemas/planner-v1.schema.json",
+  "title": "Codelix Planner output v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "project_id", "request_summary", "affected_paths", "tasks"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "project_id": {"type": "string", "minLength": 1},
+    "request_summary": {"type": "string", "minLength": 1},
+    "affected_paths": {"type": "array", "items": {"$ref": "#/$defs/path"}},
+    "tasks": {"type": "array", "minItems": 1, "maxItems": 50, "items": {"$ref": "#/$defs/task"}}
+  },
+  "$defs": {
+    "path": {"type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?![A-Za-z]:)(?!.*\\\\)"},
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "parent_id", "title", "description", "type", "role", "priority", "dependencies", "acceptance_criteria", "verification_strategy"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "parent_id": {"type": ["string", "null"]},
+        "title": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1},
+        "type": {"enum": ["analysis", "code", "test", "documentation"]},
+        "role": {"enum": ["planner", "coder", "tester", "verifier"]},
+        "priority": {"type": "integer", "minimum": 1, "maximum": 5},
+        "dependencies": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "acceptance_criteria": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "verification_strategy": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "codelix"
+version = "0.1.0"
+description = "Orchestrateur multi-modèles d'IA pour le développement logiciel"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.unittest]
+start-directory = "tests"

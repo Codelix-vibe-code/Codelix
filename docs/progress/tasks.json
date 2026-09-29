@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "project_id": "codelix",
+  "updated_at": "2026-09-29T13:50:20Z",
+  "tasks": [
+    {
+      "id": "phase-0-audit",
+      "title": "Audit du dépôt neuf et proposition d’architecture",
+      "status": "done",
+      "dependencies": [],
+      "acceptance_criteria": ["Dépôt GitHub privé créé", "État initial audité sans modifier les fichiers"],
+      "attempts": 0,
+      "files_modified": [],
+      "verifications": [],
+      "last_result": "Audit terminé ; dépôt initialement vide."
+    },
+    {
+      "id": "phase-1-foundations",
+      "title": "Contrats JSON, configuration et suivi des tâches",
+      "status": "done",
+      "dependencies": ["phase-0-audit"],
+      "acceptance_criteria": ["Contrats Planner et Coder définis", "Configuration locale validée", "Progression validée et stockée en un seul endroit", "Tests couvrant les validations"],
+      "attempts": 0,
+      "files_modified": [".env.example", ".gitignore", "PROJECT_STATUS.md", "README.md", "config.example.toml", "docs/progress/tasks.json", "pyproject.toml", "schemas/coder-v1.schema.json", "schemas/planner-v1.schema.json", "schemas/progress-v1.schema.json", "sessions.md", "src/codelix/__init__.py", "src/codelix/config.py", "src/codelix/contracts.py", "src/codelix/progress.py", "tests/test_config.py", "tests/test_contracts.py", "tests/test_progress.py", "tests/test_schemas.py"],
+      "verifications": [
+        {
+          "command": "python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "28 tests réussis avec Python 3.12.14 ; aucun test échoué.",
+          "errors": [],
+          "execution_id": "2026-09-29T13:50:20Z",
+          "acceptance_criteria": ["Contrats Planner et Coder définis", "Configuration locale validée", "Progression validée et stockée en un seul endroit", "Tests couvrant les validations"]
+        }
+      ],
+      "last_result": "Fondations implémentées ; 28 tests réussis."
+    },
+    {
+      "id": "phase-2-providers-routing",
+      "title": "Fournisseurs IA et routage",
+      "status": "todo",
+      "dependencies": ["phase-1-foundations"],
+      "acceptance_criteria": ["Au moins un adaptateur documenté", "Fallback et erreurs limités consignés"],
+      "attempts": 0,
+      "files_modified": [],
+      "verifications": [],
+      "last_result": null
+    },
+    {
+      "id": "phase-3-controlled-execution",
+      "title": "Application contrôlée des propositions",
+      "status": "todo",
+      "dependencies": ["phase-2-providers-routing"],
+      "acceptance_criteria": ["Chemins dangereux refusés", "Aperçu et application contrôlée", "Modifications consignées"],
+      "attempts": 0,
+      "files_modified": [],
+      "verifications": [],
+      "last_result": null
+    },
+    {
+      "id": "phase-4-verifier",
+      "title": "Vérification déterministe et boucle de correction",
+      "status": "todo",
+      "dependencies": ["phase-3-controlled-execution"],
+      "acceptance_criteria": ["Commandes autorisées uniquement", "Résultats réels consignés", "Deux corrections au plus par tâche"],
+      "attempts": 0,
+      "files_modified": [],
+      "verifications": [],
+      "last_result": null
+    },
+    {
+      "id": "phase-5-cli-stabilization",
+      "title": "CLI, documentation et stabilisation",
+      "status": "todo",
+      "dependencies": ["phase-4-verifier"],
+      "acceptance_criteria": ["Commandes CLI documentées", "Parcours de démonstration reproductible"],
+      "attempts": 0,
+      "files_modified": [],
+      "verifications": [],
+      "last_result": null
+    }
+  ]
+}
