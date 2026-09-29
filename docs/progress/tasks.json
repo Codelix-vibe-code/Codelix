@@ -57,13 +57,22 @@
     {
       "id": "phase-3-controlled-execution",
       "title": "Application contrôlée des propositions",
-      "status": "todo",
+      "status": "done",
       "dependencies": ["phase-2-providers-routing"],
-      "acceptance_criteria": ["Chemins dangereux refusés", "Aperçu et application contrôlée", "Modifications consignées"],
+      "acceptance_criteria": ["Chemins dangereux refusés", "Aperçu en lecture seule puis application approuvée", "Conflits détectés et fichiers originaux sauvegardés", "Écritures atomiques avec restauration en cas d'échec"],
       "attempts": 0,
-      "files_modified": [],
-      "verifications": [],
-      "last_result": null
+      "files_modified": ["src/codelix/execution.py", "tests/test_execution.py"],
+      "verifications": [
+        {
+          "command": "python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "50 tests réussis avec Python 3.12.14, sans test ignoré dans le dossier source du projet.",
+          "errors": [],
+          "execution_id": "2026-09-29T14:16:32Z",
+          "acceptance_criteria": ["Chemins dangereux refusés", "Aperçu en lecture seule puis application approuvée", "Conflits détectés et fichiers originaux sauvegardés", "Écritures atomiques avec restauration en cas d'échec"]
+        }
+      ],
+      "last_result": "Exécution contrôlée implémentée et couverte ; les 50 tests, y compris le refus d'un lien symbolique, réussissent dans le dossier source du projet."
     },
     {
       "id": "phase-4-verifier",

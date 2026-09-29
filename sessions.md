@@ -11,3 +11,4 @@
 - Phase 2 : adaptateur Gemini Interactions API et routeur ordonné ajoutés ; 42 tests simulés réussis. Aucun appel réel effectué, car aucun modèle/quota n'a été confirmé.
 - Adaptateurs NVIDIA Build et Groq ajoutés au format Chat Completions compatible OpenAI ; chargement du `.env` local sans écraser les variables du processus. Présence des trois noms de clés vérifiée sans lire leurs valeurs. Les modèles restent non configurés ; aucun appel API réel effectué.
 - Vérification après intégration : 44 tests `unittest` réussis ; `git diff --check` propre.
+- Phase 3 : gestionnaire d'exécution contrôlée ajouté avec aperçu, approbation, contrôle des chemins sensibles, comparaison d'empreintes, sauvegarde et restauration atomique. 50 tests réussis dans le dossier source du projet, y compris le refus d'un lien symbolique.
