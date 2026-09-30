@@ -1,28 +1,28 @@
-# Licence propriétaire Codelix
+# Licence propriétaire Vybelix
 
-**Copyright © 2026 Codelix-vibe-code. Tous droits réservés.**
+**Copyright © 2026 Kéfing Seydou Diakité. Tous droits réservés.**
 
-Le logiciel **Codelix** peut être utilisé par des tiers sous réserve des conditions de la présente licence.
+Le logiciel **Vybelix** peut être utilisé par des tiers sous réserve des conditions de la présente licence.
 
 ## 1. Autorisation d'utilisation
 
-L’utilisation de Codelix est autorisée gratuitement à des fins personnelles, éducatives, expérimentales et professionnelles internes.
+L’utilisation de Vybelix est autorisée gratuitement à des fins personnelles, éducatives, expérimentales et professionnelles internes.
 
-Une entreprise peut notamment utiliser Codelix dans le cadre de ses propres activités commerciales, y compris pour :
+Une entreprise peut notamment utiliser Vybelix dans le cadre de ses propres activités commerciales, y compris pour :
 
 - développer ses propres logiciels ;
 - automatiser ses processus internes ;
 - assister ses équipes de développement ;
-- utiliser Codelix avec ses propres clés API ;
-- déployer Codelix sur ses propres machines ou serveurs internes.
+- utiliser Vybelix avec ses propres clés API ;
+- déployer Vybelix sur ses propres machines ou serveurs internes.
 
 L'autorisation d'utilisation interne demeure valable même lorsque l'entreprise exerce une activité commerciale ou génère des revenus grâce à son activité.
 
-Cette autorisation permet d'utiliser et d'exécuter Codelix pour ses fonctionnalités prévues. Elle ne constitue pas une cession de propriété intellectuelle et ne confère aucun droit général de copier, modifier, redistribuer ou commercialiser le code source.
+Cette autorisation permet d'utiliser et d'exécuter Vybelix pour ses fonctionnalités prévues. Elle ne constitue pas une cession de propriété intellectuelle et ne confère aucun droit général de copier, modifier, redistribuer ou commercialiser le code source.
 
 ## 2. Restrictions concernant le code source
 
-Le code source de Codelix reste la propriété exclusive du titulaire des droits. Sauf autorisation écrite préalable du titulaire des droits, il est interdit de :
+Le code source de Vybelix reste la propriété exclusive du titulaire des droits. Sauf autorisation écrite préalable du titulaire des droits, il est interdit de :
 
 - copier tout ou partie substantielle du code source ;
 - modifier, adapter ou transformer le code source en vue d'une redistribution, d'une commercialisation ou d'une mise à disposition à des tiers ;
@@ -35,9 +35,9 @@ Le code source de Codelix reste la propriété exclusive du titulaire des droits
 
 ## 3. Modification pour usage interne
 
-Une modification locale de Codelix peut être effectuée uniquement pour les besoins personnels ou internes de l'utilisateur, sans redistribution ou mise à disposition de la modification à des tiers.
+Une modification locale de Vybelix peut être effectuée uniquement pour les besoins personnels ou internes de l'utilisateur, sans redistribution ou mise à disposition de la modification à des tiers.
 
-Une entreprise peut donc adapter Codelix à son environnement interne, mais cette modification ne peut pas, sans autorisation écrite préalable :
+Une entreprise peut donc adapter Vybelix à son environnement interne, mais cette modification ne peut pas, sans autorisation écrite préalable :
 
 - être distribuée à ses clients ou à des tiers ;
 - être intégrée dans un produit vendu ou distribué à des tiers ;
@@ -46,7 +46,7 @@ Une entreprise peut donc adapter Codelix à son environnement interne, mais cett
 
 ## 4. Produits et services tiers
 
-Sans autorisation écrite préalable ou licence commerciale, il est interdit d'intégrer Codelix, ou une partie substantielle de son code source, dans :
+Sans autorisation écrite préalable ou licence commerciale, il est interdit d'intégrer Vybelix, ou une partie substantielle de son code source, dans :
 
 - un logiciel vendu ou distribué à des tiers ;
 - une application commerciale ;
@@ -56,13 +56,13 @@ Sans autorisation écrite préalable ou licence commerciale, il est interdit d'i
 - une solution fournie à des clients ;
 - un service accessible à des tiers.
 
-L'utilisation interne de Codelix pour développer un produit appartenant à l'entreprise reste autorisée. En revanche, l'intégration de Codelix dans le produit final distribué à des clients nécessite une autorisation préalable.
+L'utilisation interne de Vybelix pour développer un produit appartenant à l'entreprise reste autorisée. En revanche, l'intégration de Vybelix dans le produit final distribué à des clients nécessite une autorisation préalable.
 
 ## 5. SaaS et services en ligne
 
-L'utilisation interne de Codelix sur les serveurs d'une organisation est autorisée.
+L'utilisation interne de Vybelix sur les serveurs d'une organisation est autorisée.
 
-En revanche, sauf autorisation écrite préalable ou licence commerciale, il est interdit de proposer Codelix ou une version dérivée comme service à des tiers, notamment sous forme de :
+En revanche, sauf autorisation écrite préalable ou licence commerciale, il est interdit de proposer Vybelix ou une version dérivée comme service à des tiers, notamment sous forme de :
 
 - SaaS ;
 - API ;
@@ -73,7 +73,7 @@ En revanche, sauf autorisation écrite préalable ou licence commerciale, il est
 
 ## 6. Redistribution et commercialisation
 
-Toute redistribution, revente ou commercialisation de Codelix, d'une version modifiée ou d'un produit intégrant Codelix nécessite une autorisation écrite préalable.
+Toute redistribution, revente ou commercialisation de Vybelix, d'une version modifiée ou d'un produit intégrant Vybelix nécessite une autorisation écrite préalable.
 
 Une licence commerciale distincte peut accorder, selon contrat, certains droits de modification, intégration, redistribution, hébergement ou commercialisation.
 
@@ -87,9 +87,9 @@ Les conditions applicables aux contributions communautaires pourront faire l'obj
 
 ## 8. Nom et identité du projet
 
-Le nom « Codelix », ses logos, marques et éléments graphiques ne peuvent pas être utilisés de manière à suggérer une affiliation, une approbation ou une propriété qui n'existe pas.
+Le nom « Vybelix », ses logos, marques et éléments graphiques ne peuvent pas être utilisés de manière à suggérer une affiliation, une approbation ou une propriété qui n'existe pas.
 
-Le droit d'utiliser le logiciel ne constitue pas un droit d'utiliser la marque Codelix dans un produit ou service tiers.
+Le droit d'utiliser le logiciel ne constitue pas un droit d'utiliser la marque Vybelix dans un produit ou service tiers.
 
 ## 9. Dépôt GitHub
 
@@ -106,12 +106,10 @@ Le titulaire des droits peut accorder, à sa discrétion, une licence commercial
 - l'intégration dans un produit tiers ;
 - la création d'un SaaS ;
 - l'hébergement pour des clients ;
-- la commercialisation d'une solution basée sur Codelix.
+- la commercialisation d'une solution basée sur Vybelix.
 
 Les conditions, limites, durée et éventuelle contrepartie financière de cette autorisation sont définies dans le contrat ou la licence commerciale correspondante.
 
 ## 11. Absence de transfert de propriété
 
-L'utilisation de Codelix, y compris son utilisation professionnelle interne, ne constitue pas une cession des droits d'auteur et ne confère aucun droit de propriété sur le code source.
-
-**Cette licence est un document général et doit être revue par un professionnel du droit avant d'être utilisée comme licence définitive.**
+L'utilisation de Vybelix, y compris son utilisation professionnelle interne, ne constitue pas une cession des droits d'auteur et ne confère aucun droit de propriété sur le code source.
