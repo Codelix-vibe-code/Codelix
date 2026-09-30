@@ -1,6 +1,6 @@
 # Fournisseurs et routage
 
-Codelix charge automatiquement les affectations simples du fichier `.env`
+Vybelix charge automatiquement les affectations simples du fichier `.env`
 placé près de `codelix.toml`. Les variables déjà définies dans le processus
 ont priorité. Le `.env` est ignoré par Git ; ne le partagez pas.
 
@@ -19,12 +19,12 @@ envoient les messages en Bearer auth et n'activent pas le streaming.
 Dans `.env`, les noms de variables configurés pour ce projet sont
 `Nvidia_API_KEY` et `Groq_API_KEY`. Placez les URL et variables dans
 `codelix.toml`, puis choisissez vous-même les identifiants de modèles autorisés
-sur vos comptes. Codelix ne préconfigure aucun modèle ni ne fait d'appel de
+sur vos comptes. Vybelix ne préconfigure aucun modèle ni ne fait d'appel de
 validation à votre place.
 
 ## Gemini
 
-Codelix utilise l'API REST **Interactions** de Gemini sur l'API stable `v1`.
+Vybelix utilise l'API REST **Interactions** de Gemini sur l'API stable `v1`.
 La documentation officielle la recommande pour les nouveaux usages agentiques ;
 elle accepte une entrée textuelle, une consigne système et des réglages de
 génération. La clé est envoyée dans l'en-tête `x-goog-api-key` et n'apparaît pas
@@ -57,7 +57,7 @@ coder = ["gemini:gemini-2.5-pro", "gemini:gemini-2.5-flash"]
 tester = ["gemini:gemini-2.5-flash"]
 ```
 
-Les identifiants ci-dessus illustrent la syntaxe de routage ; Codelix ne les
+Les identifiants ci-dessus illustrent la syntaxe de routage ; Vybelix ne les
 active pas automatiquement. Vérifiez les identifiants accessibles dans votre
 compte avant de les choisir. La variable `GEMINI_API_KEY` doit être définie
 dans l'environnement du processus.
