@@ -13,7 +13,7 @@ from .execution import ExecutionError, ExecutionManager
 
 
 class WorkflowError(RuntimeError):
-    """Une réponse IA ne peut pas être utilisée comme proposition Codelix."""
+    """Une réponse IA ne peut pas être utilisée comme proposition Vybelix."""
 
 
 def _json_response(text: str, label: str) -> Any:
@@ -35,8 +35,8 @@ class CodelixWorkflow:
         if len(request.encode("utf-8")) > self.config.runtime.max_file_bytes:
             raise ValueError("La demande dépasse la taille maximale autorisée.")
         instructions = (
-            "Tu es le Planner de Codelix. Décompose la demande en tâches vérifiables. "
-            "Réponds uniquement avec un objet JSON valide conforme au schéma Planner Codelix v1. "
+            "Tu es le Planner de Vybelix. Décompose la demande en tâches vérifiables. "
+            "Réponds uniquement avec un objet JSON valide conforme au schéma Planner Vybelix v1. "
             "Utilise le project_id fourni, des chemins relatifs normalisés, des identifiants stables, "
             "des dépendances valides, au plus 50 tâches, et des critères d'acceptation vérifiables. "
             "Ne propose aucune commande d'exécution."
@@ -75,8 +75,8 @@ class CodelixWorkflow:
             contexts.append({"path": relative, "content": content})
 
         instructions = (
-            "Tu es le Coder de Codelix. Propose uniquement des écritures de fichiers dans un objet JSON "
-            "strict conforme au contrat Coder Codelix v1. Reprends le task_id fourni. "
+            "Tu es le Coder de Vybelix. Propose uniquement des écritures de fichiers dans un objet JSON "
+            "strict conforme au contrat Coder Vybelix v1. Reprends le task_id fourni. "
             "N'exécute aucune commande, ne supprime et ne renomme aucun fichier. "
             "Si verification_feedback est présent, corrige les erreurs utiles sans ignorer les critères. "
             "Les changements seront affichés puis soumis à approbation humaine."
