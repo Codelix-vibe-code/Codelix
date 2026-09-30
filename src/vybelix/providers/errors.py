@@ -27,11 +27,11 @@ class AuthenticationError(ProviderError):
 
 
 class AccessDeniedError(ProviderError):
-    """Accès refusé ; la tâche s'arrête sans essayer un autre modèle."""
+    """Accès refusé pour ce candidat ; un candidat de secours explicite peut être essayé."""
 
 
 class RateLimitError(ProviderError):
-    """Limite de débit ; passer au prochain candidat."""
+    """Limite de débit ou quota ; retry borné puis candidat suivant."""
 
 
 class ModelNotFoundError(ProviderError):
@@ -39,11 +39,11 @@ class ModelNotFoundError(ProviderError):
 
 
 class TransientProviderError(ProviderError):
-    """Erreur 5xx susceptible de réussir après une seule nouvelle tentative."""
+    """Erreur 5xx réessayable avec backoff borné avant le fallback."""
 
 
 class NetworkError(ProviderError):
-    """Erreur réseau ou délai dépassé, avec une seule nouvelle tentative permise."""
+    """Erreur réseau ou délai dépassé, réessayable avec backoff borné."""
 
 
 class InvalidResponseError(ProviderError):

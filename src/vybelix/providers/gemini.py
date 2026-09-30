@@ -1,8 +1,9 @@
-"""Adaptateur REST Gemini Interactions, basé sur la bibliothèque standard."""
+"""Adaptateur REST Gemini GenerateContent, basé sur la bibliothèque standard."""
 
 from __future__ import annotations
 
 import json
+import re
 import socket
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -33,13 +34,17 @@ def _open_without_redirect(request: Request, timeout: int):
 
 
 class GeminiAdapter:
-    """Traduit les messages communs Vybelix vers la Gemini Interactions API."""
+    """Traduit les messages Vybelix vers l'API Gemini GenerateContent."""
 
     name = "gemini"
     _OPTION_NAMES = {
-        "max_output_tokens": "max_output_tokens",
+        "max_output_tokens": "maxOutputTokens",
         "seed": "seed",
-        "thinking_level": "thinking_level",
+        "thinking_level": "thinkingConfig",
+        "temperature": "temperature",
+        "top_p": "topP",
+        "response_mime_type": "responseMimeType",
+        "response_schema": "responseSchema",
     }
 
     def __init__(
@@ -61,39 +66,60 @@ class GeminiAdapter:
     ) -> dict[str, Any]:
         if not isinstance(messages, list) or not messages:
             raise ValueError("messages doit contenir au moins un message.")
-        conversation: list[str] = []
-        system_text: list[str] = []
+        contents: list[dict[str, Any]] = []
+        system_parts: list[dict[str, str]] = []
         for index, message in enumerate(messages):
             if not isinstance(message, dict) or set(message) != {"role", "content"}:
                 raise ValueError(f"messages[{index}] doit contenir role et content.")
             role, content = message["role"], message["content"]
             if role not in {"system", "user", "assistant"} or not isinstance(content, str):
-                raise ValueError(f"Message invalide à l'index {index}.")
+                raise ValueError(f"Message invalide a l'index {index}.")
             if role == "system":
-                system_text.append(content)
+                system_parts.append({"text": content})
             else:
-                speaker = "Assistant" if role == "assistant" else "User"
-                conversation.append(f"{speaker}:\n{content}")
-        if not conversation:
+                contents.append({
+                    "role": "model" if role == "assistant" else "user",
+                    "parts": [{"text": content}],
+                })
+        if not contents:
             raise ValueError("Au moins un message user ou assistant est requis.")
 
-        body: dict[str, Any] = {
-            "model": model,
-            "input": "\n\n".join(conversation),
-            "store": False,
-        }
-        if system_text:
-            body["system_instruction"] = "\n\n".join(system_text)
+        body: dict[str, Any] = {"contents": contents}
+        if system_parts:
+            body["systemInstruction"] = {"parts": system_parts}
         if options is not None:
             if not isinstance(options, dict):
-                raise ValueError("options doit être un objet.")
+                raise ValueError("options doit etre un objet.")
             unknown = options.keys() - GeminiAdapter._OPTION_NAMES.keys()
             if unknown:
                 raise ValueError(f"Options Gemini non prises en charge: {', '.join(sorted(unknown))}.")
-            body["generation_config"] = {
-                GeminiAdapter._OPTION_NAMES[name]: value for name, value in options.items()
-            }
+            generation_config: dict[str, Any] = {}
+            for name, value in options.items():
+                target = GeminiAdapter._OPTION_NAMES[name]
+                if name == "thinking_level":
+                    if not isinstance(value, str) or value.lower() not in {"low", "medium", "high"}:
+                        raise ValueError("thinking_level Gemini invalide pour les modèles Gemini 3 (low, medium, high).")
+                    generation_config[target] = {"thinkingLevel": value.upper()}
+                else:
+                    generation_config[target] = value
+            body["generationConfig"] = generation_config
         return body
+
+    def _safe_error_detail(self, error: HTTPError) -> str | None:
+        """Extrait le message Google sans exposer une clé éventuellement répercutée."""
+        try:
+            payload = json.loads(error.read().decode("utf-8", errors="replace"))
+            message = payload.get("error", {}).get("message")
+        except (json.JSONDecodeError, AttributeError, TypeError, UnicodeError):
+            return None
+        if not isinstance(message, str) or not message.strip():
+            return None
+        if self._api_key:
+            message = message.replace(self._api_key, "[MASKED]")
+        message = re.sub(r"(?i)AIza[0-9A-Za-z_-]{20,}", "[MASKED]", message)
+        message = re.sub(r"(?i)Bearer\s+[^\s,;]+", "Bearer [MASKED]", message)
+        message = re.sub(r"(?i)([?&](?:key|api_key)=)[^&\s]+", r"\1[MASKED]", message)
+        return " ".join(message.split())[:240]
 
     def complete(
         self,
@@ -115,7 +141,7 @@ class GeminiAdapter:
                 fatal=True,
             )
 
-        url = f"{self.settings.base_url.rstrip('/')}/interactions"
+        url = f"{self.settings.base_url.rstrip('/')}/models/{model}:generateContent"
         body = self._request_body(messages, model, options)
         request = Request(
             url,
@@ -128,14 +154,15 @@ class GeminiAdapter:
                 raw_response = response.read()
         except HTTPError as exc:
             status = exc.code
+            detail = self._safe_error_detail(exc)
             exc.close()
             common = {"provider": self.name, "model": model, "status_code": status}
             if status == 401:
                 raise AuthenticationError("Gemini a refusé la clé API configurée.", fatal=True, **common) from exc
             if status == 403:
-                raise AccessDeniedError("Gemini a refusé l'accès à cette ressource.", fatal=True, **common) from exc
+                raise AccessDeniedError("Gemini a refusé l'accès à cette ressource.", fallback=True, **common) from exc
             if status == 429:
-                raise RateLimitError("Gemini a signalé une limite de débit.", fallback=True, **common) from exc
+                raise RateLimitError("Gemini a signalé une limite de débit.", retryable=True, fallback=True, **common) from exc
             if status == 404:
                 raise ModelNotFoundError("Gemini n'a pas trouvé le modèle configuré.", fallback=True, **common) from exc
             if status == 408:
@@ -143,8 +170,11 @@ class GeminiAdapter:
                     "Gemini a expiré la requête.", retryable=True, fallback=True, **common
                 ) from exc
             if 500 <= status <= 599:
+                message = "Gemini a renvoyé une erreur serveur."
+                if detail:
+                    message += f" Détail fournisseur : {detail}"
                 raise TransientProviderError(
-                    "Gemini a renvoyé une erreur serveur.", retryable=True, fallback=True, **common
+                    message, retryable=True, fallback=True, **common
                 ) from exc
             raise ProviderError(f"Gemini a renvoyé HTTP {status}.", fatal=True, **common) from exc
         except (TimeoutError, socket.timeout) as exc:
@@ -154,19 +184,18 @@ class GeminiAdapter:
 
         try:
             payload = json.loads(raw_response)
-            if payload["status"] != "completed":
-                raise ValueError("Interaction Gemini non terminée.")
-            steps = payload["steps"]
+            candidates = payload["candidates"]
+            if not isinstance(candidates, list):
+                raise TypeError
             text = "".join(
-                item["text"]
-                for step in steps
-                if step.get("type") == "model_output"
-                for item in step.get("content", [])
-                if item.get("type") == "text" and isinstance(item.get("text"), str)
+                part["text"]
+                for candidate in candidates
+                for part in candidate.get("content", {}).get("parts", [])
+                if isinstance(part, dict) and isinstance(part.get("text"), str)
             )
         except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError, ValueError) as exc:
             raise InvalidResponseError(
-                "Réponse Gemini vide ou non conforme au contrat attendu.",
+                "Réponse Gemini vide ou non conforme au contrat GenerateContent.",
                 provider=self.name,
                 model=model,
                 fatal=True,

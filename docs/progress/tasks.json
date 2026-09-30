@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
-  "project_id": "codelix",
-  "updated_at": "2026-09-29T17:21:46Z",
+  "project_id": "vybelix",
+  "updated_at": "2026-09-30T16:11:51Z",
   "tasks": [
     {
       "id": "phase-0-audit",
@@ -87,19 +87,22 @@
         ".env.example",
         "README.md",
         "config.example.toml",
+        "codelix.toml",
         "docs/providers.md",
         "docs/progress/tasks.json",
         "PROJECT_STATUS.md",
         "sessions.md",
-        "src/codelix/config.py",
-        "src/codelix/providers/__init__.py",
-        "src/codelix/providers/errors.py",
-        "src/codelix/providers/gemini.py",
-        "src/codelix/providers/groq.py",
-        "src/codelix/providers/nvidia.py",
-        "src/codelix/providers/openai_compatible.py",
-        "src/codelix/providers/router.py",
-        "tests/test_provider.py"
+        "src/vybelix/providers/errors.py",
+        "src/vybelix/providers/gemini.py",
+        "src/vybelix/providers/openai_compatible.py",
+        "tests/test_provider.py",
+        "tests/test_ui.py",
+        "src/vybelix/providers/openrouter.py",
+        "src/vybelix/providers/mistral.py",
+        "src/vybelix/providers/router.py",
+        "src/vybelix/providers/__init__.py",
+        "src/vybelix/config.py",
+        "tests/test_config.py"
       ],
       "verifications": [
         {
@@ -169,9 +172,105 @@
           "acceptance_criteria": [
             "Appel réel vérifié avec modèle et quota autorisés"
           ]
+        },
+        {
+          "command": "NVIDIA POST /v1/chat/completions — z-ai/glm-5.3 (Python 3.12.10, timeout 60 s)",
+          "exit_code": 1,
+          "summary": "NetworkError après environ 60,2 s, sans statut HTTP. Tentative limitée pour éviter le timeout configuré de 300 s ; aucun workflow complet lancé.",
+          "errors": [
+            "NetworkError: timeout."
+          ],
+          "execution_id": "2026-09-30T14:42:37Z",
+          "acceptance_criteria": [
+            "Appel réel vérifié avec modèle et quota autorisés"
+          ]
+        },
+        {
+          "command": "Gemini minimal generation — gemini-3.8-flash (Python 3.12.10, timeout 60 s)",
+          "exit_code": 1,
+          "summary": "Adapter received a response but rejected its format (InvalidResponseError) after 5.4 s; HTTP status is not exposed by the adapter.",
+          "errors": [
+            "InvalidResponseError: response did not match the expected contract."
+          ],
+          "execution_id": "2026-09-30T14:42:37Z",
+          "acceptance_criteria": [
+            "Appel reel verifie avec modele et quota autorises"
+          ]
+        },
+        {
+          "command": "Python 3.12.10 -m unittest discover -s tests",
+          "exit_code": 0,
+          "summary": "All 73 project tests passed after adapter and route changes.",
+          "errors": [],
+          "execution_id": "2026-09-30T15:11:03Z",
+          "acceptance_criteria": [
+            "Adapter and route behavior covered by tests"
+          ]
+        },
+        {
+          "command": "Minimal live provider calls via adapters (short outputs)",
+          "exit_code": 1,
+          "summary": "NVIDIA openai/gpt-oss-20b returned OK through streaming. Gemini GenerateContent returned HTTP 200 and OK once, but subsequent calls to gemini-3.8-flash and gemini-3.7-flash returned HTTP 503. NVIDIA z-ai/glm-5.3 and deepseek-ai/deepseek-v4.1-flash timed out at 60 s. Groq openai/gpt-oss-20b and openai/gpt-oss-120b returned HTTP 403. No API keys were printed.",
+          "errors": [
+            "Gemini service returned intermittent HTTP 503.",
+            "NVIDIA GLM and DeepSeek generation timed out.",
+            "Groq denied access with HTTP 403."
+          ],
+          "execution_id": "2026-09-30T15:11:03Z",
+          "acceptance_criteria": [
+            "Appel reel verifie avec modele et quota autorises"
+          ]
+        },
+        {
+          "command": "Configured router smoke calls for planner/coder/tester",
+          "exit_code": 1,
+          "summary": "Planner succeeded via NVIDIA openai/gpt-oss-20b after Gemini HTTP 503; Coder succeeded via NVIDIA openai/gpt-oss-20b. Tester smoke call was interrupted after about 40 s to limit free-tier RPM consumption; no completion was confirmed.",
+          "errors": [
+            "Tester route result unconfirmed; smoke request was interrupted."
+          ],
+          "execution_id": "2026-09-30T15:11:03Z",
+          "acceptance_criteria": [
+            "Planner, Coder et Tester acheminent vers un modèle disponible"
+          ]
+        },
+        {
+          "command": "Groq minimal streaming generation - openai/gpt-oss-20b",
+          "exit_code": 1,
+          "summary": "HTTP 403 AccessDeniedError after 0.2 s. No response text; API key value was not displayed.",
+          "errors": [
+            "Groq denied access with HTTP 403."
+          ],
+          "execution_id": "2026-09-30T15:22:52Z",
+          "acceptance_criteria": [
+            "Appel reel verifie avec modele et quota autorises"
+          ]
+        },
+        {
+          "command": "PYTHONPATH=src python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "74 tests passed under Python 3.12.10 after wiring OpenRouter and Mistral through the existing OpenAI-compatible adapter. Added checks for router construction, OpenRouter headers, and rejection of unsupported Gemini MINIMAL thinking. No live API request was made during implementation verification.",
+          "errors": [],
+          "execution_id": "2026-09-30T16:07:19Z",
+          "acceptance_criteria": [
+            "Compatible-provider adapters cover NVIDIA, Groq, OpenRouter, and Mistral",
+            "Gemini 3 thinking levels are validated against supported LOW/MEDIUM/HIGH levels",
+            "API keys remain in environment and are not logged"
+          ]
+        },
+        {
+          "command": "PYTHONPATH=src python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "75 tests passed under Python 3.12.10. Verified OpenRouter/Mistral adapter registration, Gemini 3 thinking validation, and bounded exponential retry delays with jitter. No live API request was made during this code change.",
+          "errors": [],
+          "execution_id": "2026-09-30T16:11:51Z",
+          "acceptance_criteria": [
+            "HTTP 429/5xx and network failures use bounded retries when enabled",
+            "Retry delays grow exponentially and include jitter",
+            "The configured maximum retry count is bounded to three"
+          ]
         }
       ],
-      "last_result": "Adaptateurs et routage couverts par tests simulés. Tests réels non génératifs : Gemini GET /v1beta/models HTTP 200 avec gemini-3.8-flash et gemini-3.7-flash listés ; NVIDIA GET /v1/models HTTP 200 ; Groq GET /models HTTP 403. Génération minimale Gemini : HTTP 503. NVIDIA POST /chat/completions : timeout ~300 s sans statut HTTP. Phase en revue, aucun succès de génération confirmé."
+      "last_result": "Adapters corrected; all 73 tests pass. NVIDIA GPT-OSS 20B returned OK; planner and coder router smoke calls succeeded via NVIDIA GPT-OSS. Gemini GenerateContent returned HTTP 200/OK once but subsequent calls returned HTTP 503. NVIDIA GLM-5.3 and DeepSeek timed out at 60 seconds. Groq returned HTTP 403 again on a minimal streaming generation. Tester route remains unconfirmed; further calls paused to limit free-tier RPM. Phase remains in review pending provider access. Provider engine now also wires OpenRouter and Mistral through the shared Chat Completions adapter; model routes were not selected or changed. Gemini errors now surface a sanitized provider message for 5xx diagnostics, and unsupported MINIMAL thinking is rejected. 74 unit tests pass. Live Gemini calls still returned HTTP 503 on both Gemini 3.8 and 3.7 with and without generationConfig; that service/account issue remains unresolved. Bounded exponential backoff with jitter is now available for retryable 429/5xx/network errors; the local config and example enable two retries maximum. Official Google documentation recommends bounded exponential backoff for 503/429, but does not establish free-tier status as the cause of these failures. 75 tests pass. Gemini account/service availability remains unresolved."
     },
     {
       "id": "phase-3-controlled-execution",
@@ -556,6 +655,184 @@
       ],
       "verifications": [],
       "last_result": "Finition UI intégrée ; validations statiques Python, JavaScript, TOML, JSON et git diff --check réussies. La feuille CSS locale répond HTTP 200 avec les règles Files mises à jour. Aucun test ou appel IA lancé."
+    },
+    {
+      "id": "phase-7-vybelix-identity-and-handoff",
+      "title": "Migration d’identité Vybelix et passation du cahier des charges",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-10-polish"
+      ],
+      "acceptance_criteria": [
+        "Le package principal, la CLI, le README et l’interface affichent Vybelix",
+        "Les anciens imports, la commande, la configuration, le cache et les backups gardent leur stratégie de compatibilité documentée",
+        "Le cahier des charges complet est disponible dans docs/progress/PROJECT_BRIEF.md",
+        "Le cahier des charges source local est ignoré par Git et son contenu local est conservé",
+        "Les tests et aides CLI sont consignés sans prétendre que le build d’installation a été validé"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        ".gitignore",
+        "README.md",
+        "PROJECT_STATUS.md",
+        "sessions.md",
+        "docs/progress/PROJECT_BRIEF.md",
+        "docs/progress/tasks.json",
+        "CAHIER_DES_CHARGES_CODELIX_V1.md",
+        "pyproject.toml",
+        "src/codelix/__init__.py",
+        "src/codelix/__main__.py",
+        "src/vybelix/",
+        "tests/"
+      ],
+      "verifications": [
+        {
+          "command": "python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "71 tests réussis après intégration des commits distants. Exécution avec Python 3.14.7, hors plage supportée par pyproject.toml (Python 3.12.x).",
+          "errors": [],
+          "execution_id": "2026-09-30T12:40:12Z",
+          "acceptance_criteria": [
+            "Suite unittest complète exécutée après migration"
+          ]
+        },
+        {
+          "command": "python -B -m vybelix --help",
+          "exit_code": 0,
+          "summary": "L’aide de la CLI Vybelix affiche les neuf commandes.",
+          "errors": [],
+          "execution_id": "2026-09-30T12:40:12Z",
+          "acceptance_criteria": [
+            "CLI Vybelix accessible"
+          ]
+        },
+        {
+          "command": "python -B -m codelix --help",
+          "exit_code": 0,
+          "summary": "L’alias de compatibilité historique reste accessible.",
+          "errors": [],
+          "execution_id": "2026-09-30T12:40:12Z",
+          "acceptance_criteria": [
+            "Compatibilité CLI historique conservée"
+          ]
+        }
+      ],
+      "last_result": "Migration publiée sur main au commit bc4a9aa. Le cahier des charges complet a été copié dans docs/progress/PROJECT_BRIEF.md; le fichier source est conservé localement mais ignoré par Git. Le build/install reste une tâche séparée."
+    },
+    {
+      "id": "phase-7-package-installation-verification",
+      "title": "Valider build et installation sous Python 3.12",
+      "status": "todo",
+      "dependencies": [
+        "phase-7-vybelix-identity-and-handoff"
+      ],
+      "acceptance_criteria": [
+        "Construire la wheel avec Python 3.12.x et setuptools",
+        "Installer Vybelix dans un environnement virtuel Python 3.12",
+        "Vérifier vybelix, les ressources UI empaquetées et les imports historiques codelix",
+        "Ne retirer les shims src/codelix qu’après validation et décision explicite de compatibilité"
+      ],
+      "attempts": 0,
+      "files_modified": [],
+      "verifications": [],
+      "last_result": "À faire. L’environnement utilisé pour la migration n’avait que Python 3.14.7 et aucun setuptools.build_meta; aucune installation n’a été effectuée."
+    },
+    {
+      "id": "ui-11-glass-theme-and-simplified-tasks",
+      "title": "Thème glassmorphism global et vue Tâches simplifiée",
+      "status": "done",
+      "dependencies": [
+        "phase-6-ui-10-polish",
+        "phase-7-vybelix-identity-and-handoff"
+      ],
+      "acceptance_criteria": [
+        "L’interface complète utilise des panneaux de verre translucides dans une palette bleu-violet lumineuse",
+        "Les champs, boutons, cartes et navigation partagent le même style glassmorphism",
+        "La vue Tâches montre les compteurs, les tâches à suivre et masque les détails techniques dans des sections repliables",
+        "Les libellés de navigation et de tâche sont en français",
+        "Le fond à halos lumineux, les surfaces vitrées et les contours dégradés suivent l’image de référence tout en respectant la réduction des effets système",
+        "L’écran Assistant reprend la composition de référence avec accueil centré, zone de message lumineuse sans cartes de suggestion, et plan accessible après saisie",
+        "Le champ de chat conserve les mêmes coins arrondis et le même traitement glass que la référence"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/vybelix/ui_assets/app.css",
+        "src/vybelix/ui_assets/app.js",
+        "src/vybelix/ui_assets/index.html",
+        "src/vybelix/ui_assets/logo-lockup.png",
+        "src/vybelix/ui_assets/logo.svg"
+      ],
+      "verifications": [
+        {
+          "command": "git diff --check -- src/vybelix/ui_assets/app.js src/vybelix/ui_assets/app.css src/vybelix/ui_assets/index.html",
+          "exit_code": 0,
+          "summary": "Aucun espace final ni erreur de patch détecté dans les trois ressources UI.",
+          "errors": [],
+          "execution_id": "2026-09-30T12:58:42Z",
+          "acceptance_criteria": [
+            "Diff des ressources UI propre"
+          ]
+        },
+        {
+          "command": "git diff --check -- src/vybelix/ui_assets/app.js src/vybelix/ui_assets/app.css src/vybelix/ui_assets/index.html",
+          "exit_code": 0,
+          "summary": "Diff propre après adaptation de l’écran Assistant sans suggestions et conservation des arrondis du thème.",
+          "errors": [],
+          "execution_id": "2026-09-30T13:44:22Z",
+          "acceptance_criteria": [
+            "Ressources UI sans erreur de whitespace"
+          ]
+        }
+      ],
+      "last_result": "Thème glassmorphism bleu-violet/cyan/magenta et vue Tâches simplifiée. Logo lockup transparent, mouvement et halo conservés. Écran Assistant sans suggestions prédéfinies; envoi explicite et plan en dessous. Police Sora variable appliquée globalement, ExtraBold 800 sur les titres. Fond global violet sombre #10091F avec panneaux glass. Rendus Terminal, Vérification, Git et Historique séparés. Conteneur commun doté d’une surface translucide glass, liseré dégradé arrondi à 24 px et 8 px d’espacement entre petites cartes successives. Les surfaces glass partagées ont été assombries en préservant teintes et accents. Texte et placeholders blancs dans toute l’app. Lisibilité accrue par la typographie (libellés secondaires à 12 px minimum, graisse 500, interligne 1.5), sans modifier la palette. Git diff --check propre; aucun test automatisé lancé. Changements locaux non commités/non poussés."
+    },
+    {
+      "id": "ui-12-local-api-keys-and-pin",
+      "title": "Aperçu frontend du gestionnaire API Keys",
+      "status": "done",
+      "dependencies": [
+        "ui-11-glass-theme-and-simplified-tasks"
+      ],
+      "acceptance_criteria": [
+        "Le bouton Paramètres ouvre une fenêtre de gestion API Keys",
+        "L’aperçu comporte les écrans de création/confirmation PIN et de déverrouillage simulés",
+        "Le formulaire nom/clé permet d’ajouter plusieurs entrées, remplacer et retirer une entrée en mémoire",
+        "La page indique explicitement qu’aucune valeur n’est envoyée ou persistée",
+        "Le raccordement au backend et aux fournisseurs est fait dans une tâche séparée"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/vybelix/ui_assets/app.js",
+        "src/vybelix/ui_assets/app.css",
+        "docs/providers.md",
+        "docs/progress/tasks.json",
+        "PROJECT_STATUS.md",
+        "sessions.md",
+        "docs/progress/NEXT_CODEX.md"
+      ],
+      "verifications": [
+        {
+          "command": "node --check src/vybelix/ui_assets/app.js",
+          "exit_code": 0,
+          "summary": "Syntaxe JavaScript valide; aucune requête API Keys dans le parcours frontend.",
+          "errors": [],
+          "execution_id": "2026-09-30T15:10:09Z",
+          "acceptance_criteria": [
+            "Aperçu frontend autonome et syntaxiquement valide"
+          ]
+        },
+        {
+          "command": "git diff --check",
+          "exit_code": 0,
+          "summary": "Aucune erreur de whitespace détectée; aucun test automatisé lancé.",
+          "errors": [],
+          "execution_id": "2026-09-30T15:10:09Z",
+          "acceptance_criteria": [
+            "Diff propre"
+          ]
+        }
+      ],
+      "last_result": "Aperçu frontend seul : clic, modale, PIN simulé, formulaire nom/clé, ajouts multiples, remplacement et retrait en mémoire. Aucune clé ni aucun PIN envoyé au serveur ou écrit dans .env; toutes les entrées de démonstration disparaissent au rechargement. L’intégration backend/fournisseurs reste séparée. node --check et git diff --check réussis; aucun test automatisé lancé. Changements locaux non commités/non poussés."
     }
   ]
 }

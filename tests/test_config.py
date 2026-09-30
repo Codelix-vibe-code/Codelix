@@ -11,13 +11,13 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(config.runtime.request_timeout_seconds, 300)
         self.assertEqual(config.runtime.max_file_bytes, 204800)
         self.assertEqual(config.runtime.correction_attempts, 2)
-        self.assertEqual(config.runtime.network_retries, 1)
+        self.assertEqual(config.runtime.network_retries, 2)
         self.assertEqual(config.allowed_commands, ())
 
     def test_accepts_example_shape(self):
         config = validate_config({
             "schema_version": "1.0",
-            "runtime": {"request_timeout_seconds": 300, "max_file_bytes": 204800, "correction_attempts": 2, "network_retries": 1},
+            "runtime": {"request_timeout_seconds": 300, "max_file_bytes": 204800, "correction_attempts": 2, "network_retries": 2},
             "providers": {"gemini": {"base_url": "", "api_key_env": "GEMINI_API_KEY"}},
             "models": {"planner": [], "coder": [], "tester": []},
             "verifier": {"allowed_commands": []},

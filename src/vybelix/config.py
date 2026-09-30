@@ -18,7 +18,7 @@ class RuntimeSettings:
     request_timeout_seconds: int = 300
     max_file_bytes: int = 204_800
     correction_attempts: int = 2
-    network_retries: int = 1
+    network_retries: int = 2
 
 
 @dataclass(frozen=True)
@@ -69,7 +69,7 @@ def validate_config(raw: Any) -> VybelixConfig:
         request_timeout_seconds=_integer(runtime_data.get("request_timeout_seconds", 300), "request_timeout_seconds", 1, 300),
         max_file_bytes=_integer(runtime_data.get("max_file_bytes", 204_800), "max_file_bytes", 1, 204_800),
         correction_attempts=_integer(runtime_data.get("correction_attempts", 2), "correction_attempts", 0, 2),
-        network_retries=_integer(runtime_data.get("network_retries", 1), "network_retries", 0, 1),
+        network_retries=_integer(runtime_data.get("network_retries", 2), "network_retries", 0, 3),
     )
 
     provider_data = _mapping(data.get("providers", {}), "providers")

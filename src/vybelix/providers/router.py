@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import random
+import time
 from typing import Any, Protocol
 
 from ..config import VybelixConfig
@@ -10,6 +12,8 @@ from .errors import ProviderError, RoutingError
 from .gemini import GeminiAdapter
 from .groq import GroqAdapter
 from .nvidia import NvidiaAdapter
+from .mistral import MistralAdapter
+from .openrouter import OpenRouterAdapter
 
 
 class Provider(Protocol):
@@ -50,8 +54,8 @@ class ModelRouter:
         *,
         transient_retries: int = 1,
     ) -> None:
-        if isinstance(transient_retries, bool) or transient_retries not in (0, 1):
-            raise ValueError("transient_retries doit être 0 ou 1.")
+        if isinstance(transient_retries, bool) or not isinstance(transient_retries, int) or not 0 <= transient_retries <= 3:
+            raise ValueError("transient_retries doit être compris entre 0 et 3.")
         self.providers = providers
         self.routes = {role: tuple(candidates) for role, candidates in routes.items()}
         self.transient_retries = transient_retries
@@ -106,6 +110,10 @@ class ModelRouter:
                         self.last_trace = tuple(trace)
                         raise RoutingError(str(exc), tuple(item.as_dict() for item in trace)) from exc
                     if exc.retryable and attempt_number < attempts_allowed:
+                        # Bounded exponential backoff (1s, 2s, 4s) plus jitter.
+                        delay = min(8.0, 2.0 ** (attempt_number - 1))
+                        jitter = random.uniform(0.0, min(0.5, delay * 0.25))
+                        time.sleep(delay + jitter)
                         continue
                     if exc.fallback:
                         break
@@ -131,7 +139,13 @@ def build_router(config: VybelixConfig) -> ModelRouter:
             gemini_settings,
             timeout_seconds=config.runtime.request_timeout_seconds,
         )
-    for provider_name, adapter_type in (("nvidia", NvidiaAdapter), ("groq", GroqAdapter)):
+    compatible_adapters = {
+        "nvidia": NvidiaAdapter,
+        "groq": GroqAdapter,
+        "openrouter": OpenRouterAdapter,
+        "mistral": MistralAdapter,
+    }
+    for provider_name, adapter_type in compatible_adapters.items():
         settings = config.providers.get(provider_name)
         if settings is not None:
             providers[provider_name] = adapter_type(
