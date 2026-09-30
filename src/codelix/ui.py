@@ -1,4 +1,4 @@
-"""Interface Web locale Codelix, raccordée au workflow et aux outils contrôlés."""
+"""Interface Web locale Vybelix, raccordée au workflow et aux outils contrôlés."""
 from __future__ import annotations
 
 import json
@@ -315,7 +315,7 @@ def make_handler(project: Path, static_root: Path):
                 try:
                     payload = json.dumps(project_snapshot(project, self.actions), ensure_ascii=False).encode("utf-8")
                 except (OSError, ValueError, KeyError, tomllib.TOMLDecodeError):
-                    self.send_error(503, "État local Codelix indisponible.")
+                    self.send_error(503, "État local Vybelix indisponible.")
                     return
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -407,16 +407,16 @@ def run_ui(project: Path, *, port: int = 0, open_browser: bool = True) -> None:
     root = project.resolve(strict=True)
     static_root = Path(__file__).with_name("ui_assets")
     if not (static_root / "index.html").is_file():
-        raise FileNotFoundError("Les ressources de l'interface Codelix sont absentes.")
+        raise FileNotFoundError("Les ressources de l'interface Vybelix sont absentes.")
     server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(root, static_root))
     url = f"http://127.0.0.1:{server.server_port}/"
-    print(f"Interface Codelix locale : {url}")
+    print(f"Interface Vybelix locale : {url}")
     print("Actions disponibles sur demande ; appels IA et applications nécessitent une action explicite.")
     if open_browser:
         webbrowser.open(url)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("Arrêt de l'interface Codelix.")
+        print("Arrêt de l'interface Vybelix.")
     finally:
         server.server_close()
