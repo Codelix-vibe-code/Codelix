@@ -1,4 +1,4 @@
-"""Validation déterministe des contrats JSON utilisés par Codelix."""
+"""Validation déterministe des contrats JSON utilisés par Vybelix."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 
 class ContractError(ValueError):
-    """Une donnée ne respecte pas son contrat Codelix."""
+    """Une donnée ne respecte pas son contrat Vybelix."""
 
 
 def _object(value: Any, label: str) -> Mapping[str, Any]:
