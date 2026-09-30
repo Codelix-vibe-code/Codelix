@@ -1,4 +1,4 @@
-"""UI/API bridge calling Codelix's existing workflow and deterministic managers."""
+"""UI/API bridge calling Vybelix's existing workflow and deterministic managers."""
 from __future__ import annotations
 
 import difflib
@@ -18,7 +18,8 @@ from .progress import ProgressStore
 from .providers.errors import RoutingError
 from .providers.router import build_router
 from .verifier import Verifier
-from .workflow import CodelixWorkflow
+from .workflow import VybelixWorkflow
+from .paths import project_cache_root, project_config_path
 
 
 class UIActionError(RuntimeError):
@@ -89,10 +90,10 @@ class UIActions:
         if not isinstance(request, str) or not request.strip() or len(request.encode("utf-8")) > 20_000:
             raise UIActionError("La demande doit contenir entre 1 et 20 000 octets.")
         with self._project_lock:
-            config = load_config(self.root / "codelix.toml")
+            config = load_config(project_config_path(self.root))
             progress = ProgressStore(self.root / "docs" / "progress" / "tasks.json").load()
             router = build_router(config)
-            plan = CodelixWorkflow(config, router, progress["project_id"]).create_plan(request)
+            plan = VybelixWorkflow(config, router, progress["project_id"]).create_plan(request)
             path = self._cache_path("plan.json")
             _write_json(path, plan)
             routing = [item.as_dict() for item in router.last_trace]
@@ -135,7 +136,7 @@ class UIActions:
     def _code(self, payload: dict[str, Any]) -> dict[str, Any]:
         task_id = _task_id(payload)
         with self._project_lock:
-            config = load_config(self.root / "codelix.toml")
+            config = load_config(project_config_path(self.root))
             store = ProgressStore(self.root / "docs" / "progress" / "tasks.json")
             progress = store.load()
             task_record = next((item for item in progress["tasks"] if item["id"] == task_id), None)
@@ -153,7 +154,7 @@ class UIActions:
             feedback = task_record["verifications"][-1].get("errors", []) if task_record["status"] == "needs_review" and task_record["verifications"] else []
             workflow_task = {**task, "affected_paths": plan["affected_paths"], "verification_feedback": feedback}
             router = build_router(config)
-            proposal = CodelixWorkflow(config, router, progress["project_id"]).create_code_proposal(workflow_task, self.root)
+            proposal = VybelixWorkflow(config, router, progress["project_id"]).create_code_proposal(workflow_task, self.root)
             if not proposal["files"]:
                 raise UIActionError("La proposition ne contient aucun fichier à examiner.")
             manager = ExecutionManager(self.root, max_file_bytes=config.runtime.max_file_bytes)
@@ -173,7 +174,7 @@ class UIActions:
 
     def proposal_diff(self, task_id: str) -> dict[str, Any]:
         task_id = _valid_task_id(task_id)
-        config = load_config(self.root / "codelix.toml")
+        config = load_config(project_config_path(self.root))
         proposal = self._load_proposal(task_id)
         manager = ExecutionManager(self.root, max_file_bytes=config.runtime.max_file_bytes)
         snapshots = manager.inspect([item["path"] for item in proposal["files"]])
@@ -202,7 +203,7 @@ class UIActions:
             task = next((item for item in progress["tasks"] if item["id"] == task_id), None)
             if task is None or task["status"] != "needs_review":
                 raise UIActionError("La tâche doit être en revue avec une proposition active avant son application.")
-            config = load_config(self.root / "codelix.toml")
+            config = load_config(project_config_path(self.root))
             proposal = self._load_proposal(task_id)
             paths = [item["path"] for item in proposal["files"]]
             approved_hashes = payload.get("approved_hashes")
@@ -222,7 +223,7 @@ class UIActions:
             task["files_modified"] = list(dict.fromkeys([*task["files_modified"], *result.written]))
             task["status"] = "in_progress"
             task["last_result"] = "Proposition appliquée après approbation depuis l’interface."
-            task["verifications"].append({"command": "codelix apply", "exit_code": 0, "summary": f"Fichiers appliqués : {', '.join(result.written)}", "errors": [], "execution_id": result.backup_id, "acceptance_criteria": []})
+            task["verifications"].append({"command": "vybelix apply", "exit_code": 0, "summary": f"Fichiers appliqués : {', '.join(result.written)}", "errors": [], "execution_id": result.backup_id, "acceptance_criteria": []})
             progress["updated_at"] = _now()
             store.save(progress)
             self._record_event("changes_applied", task_ids=[task_id], files=list(result.written), rollback_id=result.backup_id)
@@ -250,7 +251,7 @@ class UIActions:
         task_id = _task_id(payload)
         command = payload.get("command")
         with self._project_lock:
-            config = load_config(self.root / "codelix.toml")
+            config = load_config(project_config_path(self.root))
             store = ProgressStore(self.root / "docs" / "progress" / "tasks.json")
             progress = store.load()
             task = next((item for item in progress["tasks"] if item["id"] == task_id), None)
@@ -280,7 +281,7 @@ class UIActions:
     def _record_event(self, kind: str, **details: Any) -> None:
         path = self._cache_path("events.json")
         if path.is_symlink():
-            raise UIActionError("Le journal Codelix contient un lien interdit.")
+            raise UIActionError("Le journal Vybelix contient un lien interdit.")
         events = self.history()
         event = {"id": uuid.uuid4().hex, "type": kind, "timestamp": _now(), **details}
         events.append(event)
@@ -293,7 +294,7 @@ class UIActions:
             raise UIActionError("Chemin de fichier invalide.") from exc
         parts = relative.split("/")
         lowered = [part.casefold() for part in parts]
-        if any(part in {".git", ".codelix-cache", ".codelix-backups", "node_modules", ".venv", "venv"} for part in lowered):
+        if any(part in {".git", ".vybelix-cache", ".codelix-cache", ".vybelix-backups", ".codelix-backups", "node_modules", ".venv", "venv"} for part in lowered):
             raise UIActionError("Ce chemin système n’est pas consultable dans Files.")
         name = lowered[-1]
         if name in {".env", "credentials.json", "secrets.json", "id_rsa", "id_ed25519"} or (name.startswith(".env.") and name != ".env.example") or Path(name).suffix in {".pem", ".key", ".p12", ".pfx"}:
@@ -325,15 +326,15 @@ class UIActions:
         return self._cache_path("proposals", f"{hashlib.sha256(task_id.encode('utf-8')).hexdigest()[:20]}.json")
 
     def _cache_path(self, *parts: str) -> Path:
-        root = self.root / ".codelix-cache"
+        root = project_cache_root(self.root)
         path = root.joinpath(*parts)
         cursor = self.root
-        for part in (".codelix-cache", *parts):
+        for part in (root.name, *parts):
             cursor = cursor / part
             if cursor.exists() and (cursor.is_symlink() or getattr(cursor, "is_junction", lambda: False)()):
-                raise UIActionError("Un lien ou une jonction interdit l’accès au cache Codelix.")
+                raise UIActionError("Un lien ou une jonction interdit l’accès au cache Vybelix.")
         if not path.resolve(strict=False).is_relative_to(self.root):
-            raise UIActionError("Le cache Codelix sort de la racine du projet.")
+            raise UIActionError("Le cache Vybelix sort de la racine du projet.")
         return path
 
 

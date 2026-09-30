@@ -14,6 +14,7 @@ from urllib.parse import unquote, urlsplit
 
 from .progress import ProgressStore
 from .ui_actions import UIActionError, UIActions
+from .paths import project_cache_root, project_config_path
 
 
 def _git_state(project: Path) -> dict[str, Any]:
@@ -35,7 +36,7 @@ def _git_state(project: Path) -> dict[str, Any]:
 
 
 def _project_file_count(root: Path) -> int:
-    ignored = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".mypy_cache"}
+    ignored = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".mypy_cache", ".vybelix-cache", ".codelix-cache", ".vybelix-backups", ".codelix-backups"}
     total = 0
     for current, directories, files in os.walk(root, followlinks=False):
         directories[:] = [name for name in directories if name not in ignored]
@@ -54,7 +55,7 @@ def _verification_snapshot(tasks: list[dict[str, Any]]) -> tuple[dict[str, Any],
                 continue
             exit_code = item.get("exit_code")
             command = item.get("command") if isinstance(item.get("command"), str) else ""
-            if command == "codelix apply":
+            if command == "vybelix apply":
                 continue
             status = "passed" if exit_code == 0 else "timeout" if exit_code is None else "failed"
             records.append({
@@ -70,7 +71,7 @@ def _verification_snapshot(tasks: list[dict[str, Any]]) -> tuple[dict[str, Any],
 
 
 def _safe_project_files(root: Path, *, limit: int = 500) -> list[dict[str, Any]]:
-    ignored_dirs = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".mypy_cache", ".codelix-cache", ".codelix-backups"}
+    ignored_dirs = {".git", ".venv", "venv", "node_modules", "__pycache__", ".pytest_cache", ".mypy_cache", ".vybelix-cache", ".codelix-cache", ".vybelix-backups", ".codelix-backups"}
     ignored_files = {".env", "credentials.json", "secrets.json", "id_rsa", "id_ed25519"}
     entries: list[dict[str, Any]] = []
     for current, directories, files in os.walk(root, followlinks=False):
@@ -117,7 +118,7 @@ def _git_details(project: Path) -> dict[str, Any]:
 
 
 def _proposal_snapshot(root: Path) -> list[dict[str, Any]]:
-    directory = root / ".codelix-cache" / "proposals"
+    directory = project_cache_root(root) / "proposals"
     if not directory.is_dir() or directory.is_symlink():
         return []
     proposals = []
@@ -139,7 +140,7 @@ def _proposal_snapshot(root: Path) -> list[dict[str, Any]]:
 
 
 def _pending_plan(root: Path, project_id: str, approved_ids: set[str] | None = None) -> dict[str, Any] | None:
-    file = root / ".codelix-cache" / "plan.json"
+    file = project_cache_root(root) / "plan.json"
     if not file.is_file() or file.is_symlink() or not file.resolve().is_relative_to(root):
         return None
     try:
@@ -206,7 +207,7 @@ def project_snapshot(project: Path, actions: UIActions | None = None) -> dict[st
     root = project.resolve(strict=True)
     if not root.is_dir():
         raise ValueError("Le projet doit être un dossier existant.")
-    config_path = root / "codelix.toml"
+    config_path = project_config_path(root)
     with config_path.open("rb") as source:
         config = tomllib.load(source)
     progress = ProgressStore(root / "docs" / "progress" / "tasks.json").load()
@@ -270,8 +271,8 @@ def project_snapshot(project: Path, actions: UIActions | None = None) -> dict[st
         "history": history,
         "agents": _agent_progress(task_details, operations, history, _proposal_snapshot(root), pending_plan),
         "capabilities": {
-            "provider_calls": True,
-            "writes": True,
+            "provider_calls": False,
+            "writes": False,
             "api_status": "user_initiated",
         },
     }
@@ -285,7 +286,7 @@ def _safe_ui_error(exc: Exception) -> str:
 def make_handler(project: Path, static_root: Path):
     actions = UIActions(project)
 
-    class CodelixUIHandler(SimpleHTTPRequestHandler):
+    class VybelixUIHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
             self.actions = actions
             super().__init__(*args, directory=str(static_root), **kwargs)
@@ -372,6 +373,11 @@ def make_handler(project: Path, static_root: Path):
                 self._json(400, {"error": "Corps JSON invalide."})
                 return
             path = urlsplit(self.path).path
+            if path == "/api/state":
+                self.send_response(405)
+                self.send_header("Allow", "GET")
+                self.end_headers()
+                return
             try:
                 if path == "/api/plan":
                     operation_id = self.actions.submit("plan", payload)
@@ -399,7 +405,7 @@ def make_handler(project: Path, static_root: Path):
             # Les requêtes et leurs éventuels paramètres ne sont pas journalisés.
             return
 
-    return CodelixUIHandler
+    return VybelixUIHandler
 
 
 def run_ui(project: Path, *, port: int = 0, open_browser: bool = True) -> None:

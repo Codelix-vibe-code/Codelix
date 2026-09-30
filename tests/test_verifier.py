@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from codelix.verifier import VerificationError, Verifier, correction_limit
+from vybelix.verifier import VerificationError, Verifier, correction_limit
 
 
 class VerifierTests(unittest.TestCase):

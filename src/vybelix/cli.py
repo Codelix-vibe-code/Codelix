@@ -1,4 +1,4 @@
-"""Interface de commande initiale de Codelix."""
+"""Interface de commande initiale de Vybelix."""
 
 from __future__ import annotations
 
@@ -16,8 +16,9 @@ from .execution import ExecutionError, ExecutionManager
 from .progress import ProgressError, ProgressStore
 from .verifier import VerificationError, Verifier
 from .providers.router import build_router
-from .workflow import CodelixWorkflow, WorkflowError
+from .workflow import VybelixWorkflow, WorkflowError
 from .contracts import validate_planner_output, validate_relative_path
+from .paths import project_cache_root, project_config_path
 from .ui import run_ui
 
 
@@ -26,13 +27,13 @@ def _progress_path(project: Path) -> Path:
 
 
 def _config_path(project: Path) -> Path:
-    return project / "codelix.toml"
+    return project_config_path(project)
 
 
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="codelix", description="Orchestrateur local de développement assisté par IA")
+    parser = argparse.ArgumentParser(prog="vybelix", description="Orchestrateur local de développement assisté par IA")
     commands = parser.add_subparsers(dest="action", required=True)
-    init = commands.add_parser("init", help="Initialiser un projet Codelix local")
+    init = commands.add_parser("init", help="Initialiser un projet Vybelix local")
     init.add_argument("project", type=Path, nargs="?", default=Path.cwd())
     status = commands.add_parser("status", help="Afficher les tâches du projet")
     status.add_argument("--project", type=Path, default=Path.cwd())
@@ -54,7 +55,7 @@ def _parser() -> argparse.ArgumentParser:
     apply_cmd.add_argument("proposal", type=Path)
     apply_cmd.add_argument("--project", type=Path, default=Path.cwd())
     apply_cmd.add_argument("--task-id", required=True)
-    ui = commands.add_parser("ui", help="Ouvrir le cockpit Codelix local")
+    ui = commands.add_parser("ui", help="Ouvrir le cockpit Vybelix local")
     ui.add_argument("--project", type=Path, default=Path.cwd())
     ui.add_argument("--port", type=int, default=0, help="Port local (0 = port libre automatique)")
     return parser
@@ -75,7 +76,7 @@ def _init(project: Path) -> int:
     if progress_path.exists():
         print(f"Progression déjà présente : {progress_path}")
     else:
-        project_id = re.sub(r"[^a-z0-9-]+", "-", project.name.casefold()).strip("-") or "codelix-project"
+        project_id = re.sub(r"[^a-z0-9-]+", "-", project.name.casefold()).strip("-") or "vybelix-project"
         ProgressStore(progress_path).save({
             "schema_version": "1.0",
             "project_id": project_id,
@@ -83,7 +84,7 @@ def _init(project: Path) -> int:
             "tasks": [],
         })
         print(f"Progression initialisée : {progress_path}")
-    print("Aucune clé ni aucun modèle n'a été copié. Configurez .env et codelix.toml localement.")
+    print("Aucune clé ni aucun modèle n'a été copié. Configurez .env et vybelix.toml localement.")
     return 0
 
 
@@ -114,16 +115,17 @@ def _plan_path(project: Path) -> Path:
 
 
 def _cache_file(project: Path, *parts: str) -> Path:
-    relative = validate_relative_path(".codelix-cache/" + "/".join(parts))
+    cache_root = project_cache_root(project)
+    relative = validate_relative_path(cache_root.name + "/" + "/".join(parts))
     root = project.resolve(strict=True)
     candidate = root.joinpath(*relative.split("/"))
     cursor = root
     for part in relative.split("/"):
         cursor = cursor / part
         if cursor.exists() and (cursor.is_symlink() or cursor.is_junction()):
-            raise WorkflowError("Un lien ou une jonction interdit l'accès au cache Codelix.")
+            raise WorkflowError("Un lien ou une jonction interdit l'accès au cache Vybelix.")
     if not candidate.resolve(strict=False).is_relative_to(root):
-        raise WorkflowError("Le cache Codelix sort de la racine du projet.")
+        raise WorkflowError("Le cache Vybelix sort de la racine du projet.")
     return candidate
 
 
@@ -131,7 +133,7 @@ def _plan(project: Path, request: str) -> int:
     config = load_config(_config_path(project))
     progress = ProgressStore(_progress_path(project)).load()
     router = build_router(config)
-    plan = CodelixWorkflow(config, router, progress["project_id"]).create_plan(request)
+    plan = VybelixWorkflow(config, router, progress["project_id"]).create_plan(request)
     plan_path = _plan_path(project)
     plan_path.parent.mkdir(parents=True, exist_ok=True)
     plan_path.write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -145,7 +147,7 @@ def _approve_plan(project: Path) -> int:
     try:
         plan = validate_planner_output(json.loads(path.read_text(encoding="utf-8")), expected_project_id=ProgressStore(_progress_path(project)).load()["project_id"])
     except (OSError, json.JSONDecodeError) as exc:
-        raise WorkflowError("Aucun plan valide en attente. Lancez d'abord codelix plan.") from exc
+        raise WorkflowError("Aucun plan valide en attente. Lancez d'abord vybelix plan.") from exc
     print(f"Plan proposé : {plan['request_summary']}")
     for task in plan["tasks"]:
         print(f"- [{task['id']}] {task['title']} — rôle: {task['role']} — priorité: {task['priority']}")
@@ -197,7 +199,7 @@ def _code(project: Path, task_id: str) -> int:
     if correction and progress_task["verifications"]:
         feedback = progress_task["verifications"][-1].get("errors", [])
     task = {**task, "affected_paths": plan["affected_paths"], "verification_feedback": feedback}
-    proposal = CodelixWorkflow(config, build_router(config), progress["project_id"]).create_code_proposal(task, project)
+    proposal = VybelixWorkflow(config, build_router(config), progress["project_id"]).create_code_proposal(task, project)
     proposal_id = hashlib.sha256(task_id.encode("utf-8")).hexdigest()[:20]
     proposal_path = _cache_file(project, "proposals", f"{proposal_id}.json")
     proposal_path.parent.mkdir(parents=True, exist_ok=True)
@@ -213,7 +215,7 @@ def _code(project: Path, task_id: str) -> int:
     print("Proposition validée et prévisualisée (aucune écriture effectuée) :")
     print(json.dumps(preview, ensure_ascii=False, indent=2))
     print(f"Détail JSON : {proposal_path}")
-    print("Pour approuver l'écriture : codelix apply " + str(proposal_path) + f" --task-id {task_id}")
+    print("Pour approuver l'écriture : vybelix apply " + str(proposal_path) + f" --task-id {task_id}")
     return 0
 
 
@@ -270,7 +272,7 @@ def _apply(project: Path, proposal_path: Path, task_id: str) -> int:
         return 0
     result = manager.apply(proposal, expected_task_id=task_id, snapshots=snapshots, approved=True)
     record = {
-        "command": "codelix apply",
+        "command": "vybelix apply",
         "exit_code": 0,
         "summary": f"Fichiers appliqués : {', '.join(result.written)}",
         "errors": [],

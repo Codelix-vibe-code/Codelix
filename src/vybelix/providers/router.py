@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from ..config import CodelixConfig
+from ..config import VybelixConfig
 from .errors import ProviderError, RoutingError
 from .gemini import GeminiAdapter
 from .groq import GroqAdapter
@@ -122,7 +122,7 @@ class ModelRouter:
         )
 
 
-def build_router(config: CodelixConfig) -> ModelRouter:
+def build_router(config: VybelixConfig) -> ModelRouter:
     """Construit le routeur depuis la configuration validée, sans clés codées en dur."""
     providers: dict[str, Provider] = {}
     gemini_settings = config.providers.get("gemini")

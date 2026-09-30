@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from codelix.progress import ProgressError, ProgressStore, validate_progress
+from vybelix.progress import ProgressError, ProgressStore, validate_progress
 
 
 def task(task_id, dependencies=None):
@@ -21,12 +21,12 @@ def task(task_id, dependencies=None):
 
 
 def progress(tasks=None):
-    return {"schema_version": "1.0", "project_id": "codelix", "updated_at": "2026-09-29T00:00:00Z", "tasks": tasks or [task("one")]}
+    return {"schema_version": "1.0", "project_id": "vybelix", "updated_at": "2026-09-29T00:00:00Z", "tasks": tasks or [task("one")]}
 
 
 class ProgressTests(unittest.TestCase):
     def test_accepts_valid_progress(self):
-        self.assertEqual(validate_progress(progress())["project_id"], "codelix")
+        self.assertEqual(validate_progress(progress())["project_id"], "vybelix")
 
     def test_rejects_unknown_status(self):
         value = progress()

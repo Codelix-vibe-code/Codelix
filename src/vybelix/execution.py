@@ -52,7 +52,7 @@ class ExecutionManager:
         *,
         protected_paths: set[str] | None = None,
         max_file_bytes: int = 204_800,
-        backup_directory: str = ".codelix-backups",
+        backup_directory: str = ".vybelix-backups",
     ) -> None:
         self.root = root.resolve(strict=True)
         if not self.root.is_dir():
@@ -60,6 +60,8 @@ class ExecutionManager:
         if isinstance(max_file_bytes, bool) or not isinstance(max_file_bytes, int) or max_file_bytes < 1:
             raise ValueError("max_file_bytes doit être un entier positif.")
         self.max_file_bytes = max_file_bytes
+        if backup_directory == ".vybelix-backups" and not (self.root / backup_directory).exists() and (self.root / ".codelix-backups").exists():
+            backup_directory = ".codelix-backups"
         self.backup_directory = validate_relative_path(backup_directory)
         self.protected_paths = DEFAULT_PROTECTED_PATHS | (protected_paths or set())
         self.protected_paths_casefold = {path.casefold() for path in self.protected_paths}
@@ -81,9 +83,10 @@ class ExecutionManager:
         folded_path = relative_path.casefold()
         if folded_path in self.protected_paths_casefold:
             raise ExecutionError(f"Le fichier protégé ne peut pas être modifié: {relative_path}.")
-        if not internal_backup and (
-            folded_path == self.backup_directory.casefold()
-            or folded_path.startswith(self.backup_directory.casefold() + "/")
+        backup_roots = {self.backup_directory.casefold(), ".codelix-backups", ".vybelix-backups"}
+        if not internal_backup and any(
+            folded_path == backup_root or folded_path.startswith(backup_root + "/")
+            for backup_root in backup_roots
         ):
             raise ExecutionError("Le dossier des points de retour est protégé.")
 
@@ -200,7 +203,7 @@ class ExecutionManager:
                     temporary_path: str | None = None
                     try:
                         with tempfile.NamedTemporaryFile(
-                            "wb", dir=path.parent, prefix=".codelix-", delete=False
+                            "wb", dir=path.parent, prefix=".vybelix-", delete=False
                         ) as temporary:
                             temporary_path = temporary.name
                             temporary.write(item["content"].encode("utf-8"))

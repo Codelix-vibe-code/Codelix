@@ -3,9 +3,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from codelix.config import validate_config
-from codelix.execution import ExecutionError
-from codelix.workflow import CodelixWorkflow, WorkflowError
+from vybelix.config import validate_config
+from vybelix.execution import ExecutionError
+from vybelix.workflow import VybelixWorkflow, WorkflowError
 
 
 def config():
@@ -36,14 +36,14 @@ def valid_plan():
 class WorkflowTests(unittest.TestCase):
     def test_plan_is_parsed_and_validated(self):
         router = FakeRouter(json.dumps(valid_plan()))
-        plan = CodelixWorkflow(config(), router, "demo").create_plan("Créer hello.txt")
+        plan = VybelixWorkflow(config(), router, "demo").create_plan("Créer hello.txt")
         self.assertEqual(plan["tasks"][0]["id"], "task-1")
         self.assertEqual(router.calls[0][0], "planner")
 
     def test_invalid_plan_is_not_accepted(self):
         router = FakeRouter('{"not":"a plan"}')
         with self.assertRaises(WorkflowError):
-            CodelixWorkflow(config(), router, "demo").create_plan("Créer un fichier")
+            VybelixWorkflow(config(), router, "demo").create_plan("Créer un fichier")
 
     def test_coder_receives_only_validated_relevant_context(self):
         proposal = {
@@ -56,14 +56,14 @@ class WorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "hello.txt").write_text("bonjour", encoding="utf-8")
-            result = CodelixWorkflow(config(), router, "demo").create_code_proposal(task, root)
+            result = VybelixWorkflow(config(), router, "demo").create_code_proposal(task, root)
         self.assertEqual(result["task_id"], "task-1")
         payload = json.loads(router.calls[0][1][1]["content"])
         self.assertEqual(payload["context_files"], [{"path": "hello.txt", "content": "bonjour"}])
 
     def test_coder_cannot_receive_secret_or_outside_context(self):
         router = FakeRouter('{}')
-        workflow = CodelixWorkflow(config(), router, "demo")
+        workflow = VybelixWorkflow(config(), router, "demo")
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaises(ExecutionError):
                 workflow.create_code_proposal({"id": "task-1", "affected_paths": [".env"]}, Path(directory))

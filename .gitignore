@@ -9,7 +9,11 @@ htmlcov/
 .env.*
 !.env.example
 codelix.toml
+vybelix.toml
 .codelix-cache/
+.vybelix-cache/
+.codelix-backups/
+.vybelix-backups/
 build/
 dist/
 *.egg-info/

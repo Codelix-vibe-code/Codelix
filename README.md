@@ -11,8 +11,8 @@ JSON validés, configuration locale et suivi vérifiable des tâches.
 - Aucune dépendance d'exécution n'est nécessaire pour les fondations actuelles.
 
 Créez un environnement virtuel avec `python -m venv .venv`, puis activez-le
-avec `\.\.venv\Scripts\Activate.ps1` dans PowerShell. Copiez
-`config.example.toml` vers `codelix.toml` et ne placez jamais de clé API dans un
+avec `.\.venv\Scripts\Activate.ps1` dans PowerShell. Copiez
+`config.example.toml` vers `vybelix.toml` et ne placez jamais de clé API dans un
 fichier suivi par Git. Les clés seront fournies par variables d'environnement.
 
 ## Vérifications
@@ -27,34 +27,31 @@ La suite est également compatible avec `pytest` lorsqu'il est installé.
 
 Les adaptateurs Gemini, NVIDIA Build et Groq sont décrits dans
 [`docs/providers.md`](docs/providers.md). Aucun modèle n'est activé par défaut ;
-les identifiants et l'ordre des candidats sont choisis dans `codelix.toml`.
+les identifiants et l'ordre des candidats sont choisis dans `vybelix.toml`.
 
 ## CLI
 
 Après installation (`python -m pip install -e .`) :
 
 ```powershell
-codelix init .
-codelix config
-codelix status
-codelix plan "Ajouter une page de connexion"
-codelix approve-plan
-codelix code --task-id TACHE
-codelix apply .codelix-cache/proposals/ID.json --task-id TACHE
-codelix verify --task-id TACHE --command "python -m unittest discover -s tests -v"
+vybelix init .
+vybelix config
+vybelix status
+vybelix plan "Ajouter une page de connexion"
+vybelix approve-plan
+vybelix code --task-id TACHE
+vybelix apply .vybelix-cache/proposals/ID.json --task-id TACHE
+vybelix verify --task-id TACHE --command "python -m unittest discover -s tests -v"
 ```
-
-La commande CLI et les chemins techniques historiques restent nommés `codelix`
-afin de préserver la compatibilité avec le code actuel.
 
 `init` ne remplace jamais les fichiers existants. `verify` n'exécute que la
 ligne exacte inscrite dans `verifier.allowed_commands`. `apply` affiche d'abord
 les fichiers et demande une confirmation interactive avant toute écriture.
 Ajoutez uniquement des commandes de vérification adaptées et approuvées dans
-`codelix.toml`.
+`vybelix.toml`.
 
 `plan` et `code` envoient une requête au fournisseur seulement quand vous lancez
-ces commandes et après avoir configuré des candidats dans [models]. `plan`
+ces commandes et après avoir configuré des candidats dans `[models]`. `plan`
 enregistre un brouillon; `approve-plan` affiche les tâches et critères puis
 demande une confirmation. `code` valide le JSON retourné et n'écrit aucun fichier.
 
@@ -64,7 +61,7 @@ demande une confirmation. `code` valide le JSON retourné et n'écrit aucun fich
 Depuis la racine du projet, lancez :
 
 ```powershell
-python -m codelix ui
+python -m vybelix ui
 ```
 
 Vybelix ouvre son interface sur `127.0.0.1`. Le tableau de bord lit l’état réel du

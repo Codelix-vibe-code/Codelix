@@ -195,7 +195,7 @@ button { color: inherit; font: inherit; }
 @media (prefers-reduced-transparency: reduce) { .agent-card { -webkit-backdrop-filter: none; backdrop-filter: none; background: #11111B; } }
 
 
-/* File tree controls should blend into Codelix surfaces instead of browser-gray buttons. */
+/* File tree controls should blend into Vybelix surfaces instead of browser-gray buttons. */
 .file-list { display: grid; gap: 6px; padding: 2px; }
 .file-entry {
   width: 100%; min-height: 32px; display: flex; align-items: center; gap: 10px;

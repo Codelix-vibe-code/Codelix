@@ -1,7 +1,7 @@
 # Fournisseurs et routage
 
 Vybelix charge automatiquement les affectations simples du fichier `.env`
-placé près de `codelix.toml`. Les variables déjà définies dans le processus
+placé près de `vybelix.toml`. Les variables déjà définies dans le processus
 ont priorité. Le `.env` est ignoré par Git ; ne le partagez pas.
 
 ## NVIDIA Build et Groq
@@ -18,7 +18,7 @@ envoient les messages en Bearer auth et n'activent pas le streaming.
 
 Dans `.env`, les noms de variables configurés pour ce projet sont
 `Nvidia_API_KEY` et `Groq_API_KEY`. Placez les URL et variables dans
-`codelix.toml`, puis choisissez vous-même les identifiants de modèles autorisés
+`vybelix.toml`, puis choisissez vous-même les identifiants de modèles autorisés
 sur vos comptes. Vybelix ne préconfigure aucun modèle ni ne fait d'appel de
 validation à votre place.
 
@@ -42,7 +42,7 @@ aucun outil du fournisseur. Les messages sont transmis sans stockage serveur
 
 ## Configurer les candidats
 
-Dans `codelix.toml`, définissez les clés d'environnement et les candidats par
+Dans `vybelix.toml`, définissez les clés d'environnement et les candidats par
 rôle. Un candidat utilise le format `fournisseur:identifiant-du-modèle`.
 Plusieurs candidats sont essayés dans l'ordre :
 

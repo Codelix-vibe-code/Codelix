@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "codelix"
+name = "vybelix"
 version = "0.1.0"
 description = "Vybelix — orchestrateur multi-modèles d'IA pour le développement logiciel"
 readme = "README.md"
@@ -11,13 +11,14 @@ requires-python = ">=3.12,<3.13"
 dependencies = []
 
 [project.scripts]
-codelix = "codelix.cli:main"
+vybelix = "vybelix.cli:main"
+codelix = "vybelix.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-codelix = ["ui_assets/*"]
+vybelix = ["ui_assets/*"]
 
 [tool.unittest]
 start-directory = "tests"

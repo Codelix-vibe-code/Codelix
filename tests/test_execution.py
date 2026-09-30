@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from codelix.execution import (
+from vybelix.execution import (
     ExecutionError,
     ExecutionManager,
     FileConflictError,
@@ -44,7 +44,7 @@ class ExecutionManagerTests(unittest.TestCase):
         result = self.manager.apply(proposal(), expected_task_id="task-1", snapshots=snapshots, approved=True)
         self.assertEqual(result.status, "applied")
         self.assertEqual((self.root / "hello.txt").read_text(encoding="utf-8"), "nouveau")
-        backup = self.root / ".codelix-backups" / result.backup_id / "hello.txt"
+        backup = self.root / ".vybelix-backups" / result.backup_id / "hello.txt"
         self.assertEqual(backup.read_text(encoding="utf-8"), "ancien")
 
     def test_rejects_secret_git_progress_and_backup_paths(self):

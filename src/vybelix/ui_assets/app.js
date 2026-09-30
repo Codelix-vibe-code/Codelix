@@ -1,6 +1,6 @@
 const state = { snapshot: null, activeView: "dashboard" };
 const titles = {
-  dashboard: ["Dashboard", "Vue réelle du projet Codelix"],
+  dashboard: ["Dashboard", "Vue réelle du projet Vybelix"],
   chat: ["Chat", "Décris une demande ; le Planner ne part qu’après validation du formulaire"],
   tasks: ["Tasks", "Tâches réellement enregistrées dans la progression"],
   agents: ["Agents", "Progression calculée depuis les tâches et opérations persistées"],
@@ -366,9 +366,9 @@ function renderGitHistory(snapshot, host) {
   if (!snapshot.git_details.commits.length) commits.append(node("p", "muted", "Aucun commit disponible dans le dépôt."));
   snapshot.git_details.commits.forEach((commit) => commits.append(row(`${commit.hash} · ${commit.date}`, commit.subject)));
   host.append(commits);
-  const events = section("Historique des opérations Codelix");
+  const events = section("Historique des opérations Vybelix");
   const history = [...(snapshot.history || [])].reverse();
-  if (!history.length) events.append(node("p", "muted", "Aucune opération Codelix persistée."));
+  if (!history.length) events.append(node("p", "muted", "Aucune opération Vybelix persistée."));
   const labels = { plan_created: "Plan généré", plan_approved: "Plan approuvé", plan_rejected: "Plan refusé", proposal_created: "Proposition générée", proposal_rejected: "Proposition refusée", changes_applied: "Modifications appliquées", verification_completed: "Vérification exécutée" };
   history.forEach((event) => {
     const taskLabel = (event.task_ids || []).join(", ");
@@ -386,7 +386,7 @@ function renderSettings(snapshot, host) {
   safe.append(row("Taille maximale de fichier", `${snapshot.runtime.max_file_bytes ?? "non définie"} octets`));
   safe.append(row("Corrections maximales", snapshot.runtime.correction_attempts ?? "non définies"));
   safe.append(row("Commandes autorisées", snapshot.allowed_commands.length));
-  safe.append(node("p", "muted", "Les noms de clés API ne sont jamais affichés ici. Les routes modèle se modifient dans codelix.toml après choix explicite."));
+  safe.append(node("p", "muted", "Les noms de clés API ne sont jamais affichés ici. Les routes modèle se modifient dans vybelix.toml après choix explicite."));
   host.append(safe);
   const appearance = section("Apparence locale");
   const label = node("label", "setting-label", "Intensité des halos néon");
@@ -542,7 +542,7 @@ fetch("/api/state", { headers: { Accept: "application/json" }, cache: "no-store"
     host.replaceChildren();
     const error = node("div", "empty-state");
     error.append(node("div", "empty-mark", "!"), node("h2", "", "Impossible de lire l’état du projet"));
-    error.append(node("p", "", "Vérifie que Codelix est lancé depuis la racine du projet et que sa configuration locale est valide."));
+    error.append(node("p", "", "Vérifie que Vybelix est lancé depuis la racine du projet et que sa configuration locale est valide."));
     host.append(error);
   });
 

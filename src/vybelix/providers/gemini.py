@@ -33,7 +33,7 @@ def _open_without_redirect(request: Request, timeout: int):
 
 
 class GeminiAdapter:
-    """Traduit les messages communs Codelix vers la Gemini Interactions API."""
+    """Traduit les messages communs Vybelix vers la Gemini Interactions API."""
 
     name = "gemini"
     _OPTION_NAMES = {

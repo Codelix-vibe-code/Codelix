@@ -25,7 +25,7 @@ class JsonSchemaDefinitionTests(unittest.TestCase):
                 if path_definition is None:
                     path_definition = schema["$defs"]["file"]["properties"]["path"]
                 pattern = re.compile(path_definition["pattern"])
-                self.assertIsNotNone(pattern.search("src/codelix/module.py"))
+                self.assertIsNotNone(pattern.search("src/vybelix/module.py"))
                 for unsafe in ("../secret", "/outside.py", "C:/outside.py", "src\\outside.py"):
                     with self.subTest(path=unsafe):
                         self.assertIsNone(pattern.search(unsafe))

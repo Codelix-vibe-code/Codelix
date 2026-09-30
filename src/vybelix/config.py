@@ -28,7 +28,7 @@ class ProviderSettings:
 
 
 @dataclass(frozen=True)
-class CodelixConfig:
+class VybelixConfig:
     runtime: RuntimeSettings
     providers: dict[str, ProviderSettings]
     models: dict[str, tuple[str, ...]]
@@ -53,7 +53,7 @@ def _integer(value: Any, name: str, minimum: int, maximum: int) -> int:
     return value
 
 
-def validate_config(raw: Any) -> CodelixConfig:
+def validate_config(raw: Any) -> VybelixConfig:
     data = _mapping(raw, "racine")
     _only_keys(data, {"schema_version", "runtime", "providers", "models", "verifier"}, "racine")
     if data.get("schema_version") != "1.0":
@@ -101,10 +101,10 @@ def validate_config(raw: Any) -> CodelixConfig:
     allowed = verifier.get("allowed_commands", [])
     if not isinstance(allowed, list) or any(not isinstance(item, str) or not item.strip() for item in allowed):
         raise ConfigurationError("verifier.allowed_commands doit être une liste de commandes non vides.")
-    return CodelixConfig(runtime, providers, models, tuple(allowed))
+    return VybelixConfig(runtime, providers, models, tuple(allowed))
 
 
-def load_config(path: Path) -> CodelixConfig:
+def load_config(path: Path) -> VybelixConfig:
     """Charge un TOML UTF-8 et n'inclut jamais les valeurs secrètes dans les erreurs."""
     try:
         load_env_file(path.parent / ".env")
@@ -145,3 +145,7 @@ def load_env_file(path: Path) -> None:
 def provider_api_key(provider: ProviderSettings) -> str | None:
     """Lit une clé à l'exécution sans la copier dans la configuration ou les journaux."""
     return os.environ.get(provider.api_key_env) if provider.api_key_env else None
+
+
+# Compatibility alias for integrations using the previous package name.
+CodelixConfig = VybelixConfig

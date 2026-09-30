@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .config import CodelixConfig
+from .config import VybelixConfig
 from .contracts import ContractError, validate_coder_output, validate_planner_output, validate_relative_path
 from .providers.router import ModelRouter
 from .execution import ExecutionError, ExecutionManager
@@ -23,8 +23,8 @@ def _json_response(text: str, label: str) -> Any:
         raise WorkflowError(f"Réponse {label} invalide : un objet JSON strict est attendu.") from exc
 
 
-class CodelixWorkflow:
-    def __init__(self, config: CodelixConfig, router: ModelRouter, project_id: str):
+class VybelixWorkflow:
+    def __init__(self, config: VybelixConfig, router: ModelRouter, project_id: str):
         self.config = config
         self.router = router
         self.project_id = project_id
@@ -92,3 +92,7 @@ class CodelixWorkflow:
             return validate_coder_output(_json_response(raw, "Coder"), expected_task_id=task_id)
         except ContractError as exc:
             raise WorkflowError(f"Proposition rejetée par le contrat Coder : {exc}") from exc
+
+
+# Compatibility alias for integrations using the previous package name.
+CodelixWorkflow = VybelixWorkflow

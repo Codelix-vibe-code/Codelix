@@ -1,6 +1,6 @@
 import unittest
 
-from codelix.contracts import ContractError, validate_coder_output, validate_planner_output
+from vybelix.contracts import ContractError, validate_coder_output, validate_planner_output
 
 
 def task(task_id, dependencies=None, parent_id=None):
@@ -21,16 +21,16 @@ def task(task_id, dependencies=None, parent_id=None):
 def plan(tasks=None):
     return {
         "schema_version": "1.0",
-        "project_id": "codelix",
+        "project_id": "vybelix",
         "request_summary": "Ajouter une fonctionnalité",
-        "affected_paths": ["src/codelix/contracts.py"],
+        "affected_paths": ["src/vybelix/contracts.py"],
         "tasks": tasks or [task("implement")],
     }
 
 
 class PlannerContractTests(unittest.TestCase):
     def test_accepts_valid_plan(self):
-        self.assertEqual(validate_planner_output(plan(), expected_project_id="codelix")["project_id"], "codelix")
+        self.assertEqual(validate_planner_output(plan(), expected_project_id="vybelix")["project_id"], "vybelix")
 
     def test_rejects_project_mismatch(self):
         with self.assertRaises(ContractError):
@@ -65,7 +65,7 @@ class CoderContractTests(unittest.TestCase):
             "schema_version": "1.0",
             "task_id": "task-1",
             "summary": "Écrire un fichier",
-            "files": [{"path": "src/codelix/new.py", "operation": "write", "content": "# code\n"}],
+            "files": [{"path": "src/vybelix/new.py", "operation": "write", "content": "# code\n"}],
             "notes": [],
             "verification_hints": ["Vérifier la syntaxe"],
         }

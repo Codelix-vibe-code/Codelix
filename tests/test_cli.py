@@ -6,8 +6,8 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from codelix.cli import _cache_file, main
-from codelix.progress import ProgressStore
+from vybelix.cli import _cache_file, main
+from vybelix.progress import ProgressStore
 
 
 class CliTests(unittest.TestCase):
@@ -24,7 +24,7 @@ class CliTests(unittest.TestCase):
             output = io.StringIO()
             with redirect_stdout(output):
                 self.assertEqual(main(["init", str(project)]), 0)
-            config = project / "codelix.toml"
+            config = project / "vybelix.toml"
             progress = project / "docs" / "progress" / "tasks.json"
             self.assertTrue(config.is_file())
             self.assertEqual(ProgressStore(progress).load()["project_id"], "mon-projet")
@@ -39,7 +39,7 @@ class CliTests(unittest.TestCase):
             with redirect_stdout(io.StringIO()):
                 self.assertEqual(main(["init", str(project)]), 0)
             command = 'python -c "print(\'check passed\')"'
-            config_path = project / "codelix.toml"
+            config_path = project / "vybelix.toml"
             config_text = config_path.read_text(encoding="utf-8").replace(
                 "allowed_commands = []", f"allowed_commands = [{json.dumps(command)}]"
             )
@@ -96,13 +96,13 @@ class CliTests(unittest.TestCase):
             data = progress_store.load()
             data["project_id"] = "demo"
             progress_store.save(data)
-            with patch("codelix.cli.build_router", return_value=object()), patch(
-                "codelix.cli.CodelixWorkflow"
+            with patch("vybelix.cli.build_router", return_value=object()), patch(
+                "vybelix.cli.VybelixWorkflow"
             ) as workflow_type:
                 workflow_type.return_value.create_plan.return_value = plan
                 with redirect_stdout(io.StringIO()):
                     self.assertEqual(main(["plan", "Créer hello.txt", "--project", str(project)]), 0)
-            self.assertTrue((project / ".codelix-cache" / "plan.json").is_file())
+            self.assertTrue((project / ".vybelix-cache" / "plan.json").is_file())
             with patch("builtins.input", return_value="o"), redirect_stdout(io.StringIO()):
                 self.assertEqual(main(["approve-plan", "--project", str(project)]), 0)
             self.assertEqual(progress_store.load()["tasks"][0]["status"], "todo")
@@ -121,7 +121,7 @@ class CliTests(unittest.TestCase):
                     "acceptance_criteria": ["Analyse faite"], "verification_strategy": "Relire le résultat",
                 }],
             }
-            cache = project / ".codelix-cache"
+            cache = project / ".vybelix-cache"
             cache.mkdir()
             (cache / "plan.json").write_text(json.dumps(plan), encoding="utf-8")
             with patch("builtins.input", return_value="n"), redirect_stdout(io.StringIO()):
@@ -138,8 +138,8 @@ class CliTests(unittest.TestCase):
                 "type": "code", "role": "coder", "priority": 2, "dependencies": [],
                 "acceptance_criteria": ["fichier présent"], "verification_strategy": "vérifier le fichier",
             }
-            (project / ".codelix-cache").mkdir(exist_ok=True)
-            (project / ".codelix-cache" / "plan.json").write_text(json.dumps({
+            (project / ".vybelix-cache").mkdir(exist_ok=True)
+            (project / ".vybelix-cache" / "plan.json").write_text(json.dumps({
                 "schema_version": "1.0", "project_id": project.name, "request_summary": "Créer hello",
                 "affected_paths": ["hello.txt"], "tasks": [task],
             }), encoding="utf-8")
@@ -156,7 +156,7 @@ class CliTests(unittest.TestCase):
                 "files": [{"path": "hello.txt", "operation": "write", "content": "ok"}],
                 "notes": [], "verification_hints": [],
             }
-            with patch("codelix.cli.build_router", return_value=object()), patch("codelix.cli.CodelixWorkflow") as flow:
+            with patch("vybelix.cli.build_router", return_value=object()), patch("vybelix.cli.VybelixWorkflow") as flow:
                 flow.return_value.create_code_proposal.return_value = proposal
                 with redirect_stdout(io.StringIO()):
                     self.assertEqual(main(["code", "--project", str(project), "--task-id", "task-1"]), 0)

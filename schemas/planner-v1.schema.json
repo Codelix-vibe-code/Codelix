@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://codelix.dev/schemas/planner-v1.schema.json",
-  "title": "Codelix Planner output v1",
+  "title": "Vybelix Planner output v1",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "project_id", "request_summary", "affected_paths", "tasks"],

@@ -1,3 +1,3 @@
-from .cli import main
+from vybelix.cli import main
 
 raise SystemExit(main())

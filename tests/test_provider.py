@@ -4,9 +4,9 @@ import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 
-from codelix.config import ProviderSettings, validate_config
-from codelix.config import load_env_file
-from codelix.providers import (
+from vybelix.config import ProviderSettings, validate_config
+from vybelix.config import load_env_file
+from vybelix.providers import (
     AccessDeniedError,
     AuthenticationError,
     GeminiAdapter,
@@ -53,7 +53,7 @@ class GeminiAdapterTests(unittest.TestCase):
         )
 
     def test_translates_common_messages_and_interactions_response(self):
-        with patch("codelix.providers.gemini._open_without_redirect", return_value=FakeResponse(interaction())) as open_url:
+        with patch("vybelix.providers.gemini._open_without_redirect", return_value=FakeResponse(interaction())) as open_url:
             self.assertEqual(self.adapter.complete(
                 [{"role": "system", "content": "Sois concis."}, {"role": "user", "content": "Bonjour"}],
                 "gemini-test",
@@ -73,23 +73,23 @@ class GeminiAdapterTests(unittest.TestCase):
 
     def test_rejects_missing_key_without_network_call(self):
         adapter = GeminiAdapter(self.adapter.settings, api_key="")
-        with patch("codelix.providers.gemini._open_without_redirect") as open_url:
+        with patch("vybelix.providers.gemini._open_without_redirect") as open_url:
             with self.assertRaises(AuthenticationError):
                 adapter.complete([{"role": "user", "content": "hi"}], "model")
             open_url.assert_not_called()
 
     def test_rejects_malformed_interaction(self):
-        with patch("codelix.providers.gemini._open_without_redirect", return_value=FakeResponse({"status": "completed"})):
+        with patch("vybelix.providers.gemini._open_without_redirect", return_value=FakeResponse({"status": "completed"})):
             with self.assertRaises(InvalidResponseError):
                 self.adapter.complete([{"role": "user", "content": "hi"}], "model")
 
     def test_rejects_non_completed_interaction(self):
-        with patch("codelix.providers.gemini._open_without_redirect", return_value=FakeResponse(interaction(status="incomplete"))):
+        with patch("vybelix.providers.gemini._open_without_redirect", return_value=FakeResponse(interaction(status="incomplete"))):
             with self.assertRaises(InvalidResponseError):
                 self.adapter.complete([{"role": "user", "content": "hi"}], "model")
 
     def test_retries_are_not_hidden_in_adapter(self):
-        with patch("codelix.providers.gemini._open_without_redirect", side_effect=TimeoutError):
+        with patch("vybelix.providers.gemini._open_without_redirect", side_effect=TimeoutError):
             with self.assertRaises(NetworkError):
                 self.adapter.complete([{"role": "user", "content": "hi"}], "model")
 
@@ -105,13 +105,13 @@ class GeminiAdapterTests(unittest.TestCase):
         for status, error_type in cases:
             with self.subTest(status=status):
                 error = HTTPError("https://example.invalid", status, "failure", {}, io.BytesIO(b"secret body"))
-                with patch("codelix.providers.gemini._open_without_redirect", side_effect=error):
+                with patch("vybelix.providers.gemini._open_without_redirect", side_effect=error):
                     with self.assertRaises(error_type) as raised:
                         self.adapter.complete([{"role": "user", "content": "hi"}], "model")
                 self.assertNotIn("secret body", str(raised.exception))
 
     def test_maps_network_error(self):
-        with patch("codelix.providers.gemini._open_without_redirect", side_effect=URLError("offline")):
+        with patch("vybelix.providers.gemini._open_without_redirect", side_effect=URLError("offline")):
             with self.assertRaises(NetworkError):
                 self.adapter.complete([{"role": "user", "content": "hi"}], "model")
 
@@ -130,7 +130,7 @@ class CompatibleProviderTests(unittest.TestCase):
             with self.subTest(provider=name):
                 adapter = adapter_type(ProviderSettings(base_url, f"{name.upper()}_API_KEY"), api_key="test-secret")
                 response = FakeResponse({"choices": [{"message": {"content": "ok"}}]})
-                with patch("codelix.providers.openai_compatible.build_opener") as opener:
+                with patch("vybelix.providers.openai_compatible.build_opener") as opener:
                     opener.return_value.open.return_value.__enter__.return_value = response
                     self.assertEqual(adapter.complete([{"role": "user", "content": "salut"}], "model-id"), "ok")
                 request = opener.return_value.open.call_args.args[0]
