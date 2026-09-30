@@ -1,6 +1,6 @@
-# Codelix
+# Vybelix
 
-Codelix est un orchestrateur multi-modèles d'IA destiné à accompagner le
+Vybelix est un orchestrateur multi-modèles d'IA destiné à accompagner le
 développement logiciel. Le dépôt commence par les fondations du MVP : contrats
 JSON validés, configuration locale et suivi vérifiable des tâches.
 
@@ -11,7 +11,7 @@ JSON validés, configuration locale et suivi vérifiable des tâches.
 - Aucune dépendance d'exécution n'est nécessaire pour les fondations actuelles.
 
 Créez un environnement virtuel avec `python -m venv .venv`, puis activez-le
-avec `.\.venv\Scripts\Activate.ps1` dans PowerShell. Copiez
+avec `\.\.venv\Scripts\Activate.ps1` dans PowerShell. Copiez
 `config.example.toml` vers `codelix.toml` et ne placez jamais de clé API dans un
 fichier suivi par Git. Les clés seront fournies par variables d'environnement.
 
@@ -44,6 +44,9 @@ codelix apply .codelix-cache/proposals/ID.json --task-id TACHE
 codelix verify --task-id TACHE --command "python -m unittest discover -s tests -v"
 ```
 
+La commande CLI et les chemins techniques historiques restent nommés `codelix`
+afin de préserver la compatibilité avec le code actuel.
+
 `init` ne remplace jamais les fichiers existants. `verify` n'exécute que la
 ligne exacte inscrite dans `verifier.allowed_commands`. `apply` affiche d'abord
 les fichiers et demande une confirmation interactive avant toute écriture.
@@ -51,7 +54,7 @@ Ajoutez uniquement des commandes de vérification adaptées et approuvées dans
 `codelix.toml`.
 
 `plan` et `code` envoient une requête au fournisseur seulement quand vous lancez
-ces commandes et après avoir configuré des candidats dans `[models]`. `plan`
+ces commandes et après avoir configuré des candidats dans [models]. `plan`
 enregistre un brouillon; `approve-plan` affiche les tâches et critères puis
 demande une confirmation. `code` valide le JSON retourné et n'écrit aucun fichier.
 
@@ -64,7 +67,7 @@ Depuis la racine du projet, lancez :
 python -m codelix ui
 ```
 
-Codelix ouvre son interface sur `127.0.0.1`. Le tableau de bord lit l’état réel du
+Vybelix ouvre son interface sur `127.0.0.1`. Le tableau de bord lit l’état réel du
 projet. Planner, Coder et Tester ne sont appelés qu’après une action explicite.
 Un plan doit être approuvé avant l’ajout des tâches ; les propositions sont
 présentées en diff et chaque application demande une approbation distincte.
