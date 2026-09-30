@@ -1,18 +1,18 @@
-# Politique de confidentialité — Codelix
+# Politique de confidentialité — Vybelix
 
 **Dernière mise à jour : 29 septembre 2026**
 
-Codelix est un orchestrateur multi-modèles d’intelligence artificielle destiné à accompagner le développement logiciel.
+Vybelix est un orchestrateur multi-modèles d’intelligence artificielle destiné à accompagner le développement logiciel.
 
 ## 1. Responsable
 
-Le projet Codelix est exploité et contrôlé par **Kéfing Seydou Diakité**, ci-après « le responsable ».
+Le projet Vybelix est exploité et contrôlé par **Kéfing Seydou Diakité**, ci-après « le responsable ».
 
-L’identité **Codelix-vibe-code** peut être utilisée comme identité technique ou organisationnelle du projet, sans constituer par elle-même la désignation du titulaire des droits indiquée dans la licence de Codelix.
+L’identité **Codelix-vibe-code** peut être utilisée comme identité technique ou organisationnelle du projet, sans constituer par elle-même la désignation du titulaire des droits indiquée dans la licence de Vybelix.
 
 ## 2. Données susceptibles d’être traitées
 
-Selon les fonctionnalités utilisées et la configuration choisie, Codelix peut traiter :
+Selon les fonctionnalités utilisées et la configuration choisie, Vybelix peut traiter :
 
 - les informations et fichiers que l’utilisateur fournit volontairement au projet ;
 - les instructions, tâches, contenus et contextes envoyés aux modèles d’IA configurés ;
@@ -21,7 +21,7 @@ Selon les fonctionnalités utilisées et la configuration choisie, Codelix peut 
 - les informations techniques nécessaires au fonctionnement de l’application ;
 - les journaux et informations de diagnostic générés par l’application.
 
-Codelix ne doit pas être configuré pour collecter des données personnelles qui ne sont pas nécessaires à son fonctionnement ou aux fonctionnalités demandées par l’utilisateur.
+Vybelix ne doit pas être configuré pour collecter des données personnelles qui ne sont pas nécessaires à son fonctionnement ou aux fonctionnalités demandées par l’utilisateur.
 
 ## 3. Fournisseurs d’IA
 
@@ -37,7 +37,7 @@ Les clés API et autres secrets doivent rester confidentiels et ne doivent pas �
 
 ## 4. Utilisation des données
 
-Les données sont utilisées dans le cadre du fonctionnement, de la sécurité, de la maintenance et, lorsque cela correspond au fonctionnement effectivement mis en œuvre, de l’amélioration de Codelix, ainsi que pour permettre les services externes explicitement configurés ou utilisés par l’utilisateur.
+Les données sont utilisées dans le cadre du fonctionnement, de la sécurité, de la maintenance et, lorsque cela correspond au fonctionnement effectivement mis en œuvre, de l’amélioration de Vybelix, ainsi que pour permettre les services externes explicitement configurés ou utilisés par l’utilisateur.
 
 Les données transmises à un fournisseur d’IA externe le sont lorsque cela est nécessaire à une fonctionnalité demandée ou activée par l’utilisateur.
 
@@ -55,12 +55,12 @@ Elles peuvent toutefois être transmises aux fournisseurs de services explicitem
 
 ## 7. Droits et demandes
 
-Pour toute question concernant les données traitées par une instance de Codelix, l’utilisateur peut contacter le responsable du projet à l’adresse :
+Pour toute question concernant les données traitées par une instance de Vybelix, l’utilisateur peut contacter le responsable du projet à l’adresse :
 
 **codelix.hardly179@aleeas.com**
 
 ## 8. Modifications
 
-Cette politique peut être mise à jour lorsque le fonctionnement de Codelix ou les obligations applicables évoluent. La date de dernière mise à jour figure en haut du document.
+Cette politique peut être mise à jour lorsque le fonctionnement de Vybelix ou les obligations applicables évoluent. La date de dernière mise à jour figure en haut du document.
 
-> Cette politique est un document général d’information et ne constitue pas un avis juridique. Elle doit être adaptée aux données effectivement traitées, aux services utilisés et au pays dans lequel Codelix est exploité.
+> Cette politique est un document général d’information et ne constitue pas un avis juridique. Elle doit être adaptée aux données effectivement traitées, aux services utilisés et au pays dans lequel Vybelix est exploité.
