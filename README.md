@@ -37,12 +37,17 @@ Après installation (`python -m pip install -e .`) :
 vybelix init .
 vybelix config
 vybelix status
+vybelix context show
+vybelix context update .vybelix-cache/context-input.json
+vybelix resume --task-id TACHE_BLOQUEE
 vybelix plan "Ajouter une page de connexion"
 vybelix approve-plan
 vybelix code --task-id TACHE
 vybelix apply .vybelix-cache/proposals/ID.json --task-id TACHE
 vybelix verify --task-id TACHE --command "python -m unittest discover -s tests -v"
 ```
+
+`context show` lit le contexte compact local; `context update` valide et enregistre un JSON sans appel de modèle. Le cockpit expose également ce contexte dans Paramètres. `resume` remet une tâche bloquée ou interrompue en attente après confirmation et vérification des dépendances, sans lancer d’agent.
 
 `init` ne remplace jamais les fichiers existants. `verify` n'exécute que la
 ligne exacte inscrite dans `verifier.allowed_commands`. `apply` affiche d'abord
@@ -67,8 +72,12 @@ python -m vybelix ui
 Vybelix ouvre son interface sur `127.0.0.1`. Le tableau de bord lit l’état réel du
 projet. Planner, Coder et Tester ne sont appelés qu’après une action explicite.
 Un plan doit être approuvé avant l’ajout des tâches ; les propositions sont
-présentées en diff et chaque application demande une approbation distincte.
+présentées en diff et chaque application demande une approbation distincte. La vue Tâches permet aussi de remettre en attente une tâche bloquée ou interrompue après confirmation; elle ne démarre pas automatiquement le Coder.
 L’onglet Verification n’exécute que les commandes de la liste autorisée, après
 confirmation. Files masque les secrets et n’ouvre que des fichiers texte UTF-8
 limités en taille. Git est consultatif : l’interface ne crée pas de commit ni de
 branche. Aucune clé API n’est affichée. Arrêtez le serveur avec `Ctrl+C`.
+
+## Reprise du projet
+
+Pour reprendre le projet, lire d’abord [`docs/progress/NEXT_CODEX.md`](docs/progress/NEXT_CODEX.md), puis le [cahier des charges global](docs/progress/PROJECT_BRIEF.md), [`PROJECT_STATUS.md`](PROJECT_STATUS.md), [`docs/progress/tasks.json`](docs/progress/tasks.json) et [`sessions.md`](sessions.md). Les changements UI non publiés doivent être conservés.

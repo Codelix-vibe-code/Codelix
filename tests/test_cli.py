@@ -11,6 +11,13 @@ from vybelix.progress import ProgressStore
 
 
 class CliTests(unittest.TestCase):
+    def _project_with_tasks(self, root: Path, tasks: list[dict]) -> tuple[Path, ProgressStore]:
+        project=root/"resume-project"
+        with redirect_stdout(io.StringIO()):main(["init",str(project)])
+        store=ProgressStore(project/"docs"/"progress"/"tasks.json")
+        data=store.load();data["tasks"]=tasks;store.save(data)
+        return project,store
+
     def test_cache_path_stays_inside_project(self):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
@@ -76,6 +83,38 @@ class CliTests(unittest.TestCase):
                 result = main(["verify", "--project", str(project), "--task-id", "absent", "--command", "whoami"])
             self.assertEqual(result, 2)
             self.assertIn("pas dans la liste", error.getvalue())
+
+    def test_resume_requeues_interrupted_task_only_after_confirmation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            task={"id":"task-resume","title":"Reprendre","status":"interrupted","dependencies":[],
+                  "acceptance_criteria":["résultat vérifié"],"attempts":1,"files_modified":["a.txt"],
+                  "verifications":[{"exit_code":1}],"last_result":"Interrompue."}
+            project,store=self._project_with_tasks(Path(directory),[task])
+            with patch("builtins.input",return_value="n"),redirect_stdout(io.StringIO()):
+                self.assertEqual(main(["resume","--project",str(project),"--task-id","task-resume"]),0)
+            self.assertEqual(store.load()["tasks"][0]["status"],"interrupted")
+            with patch("builtins.input",return_value="o"),redirect_stdout(io.StringIO()) as output:
+                self.assertEqual(main(["resume","--project",str(project),"--task-id","task-resume"]),0)
+            resumed=store.load()["tasks"][0]
+            self.assertEqual(resumed["status"],"todo")
+            self.assertEqual(resumed["attempts"],1)
+            self.assertEqual(resumed["files_modified"],["a.txt"])
+            self.assertIn("aucune génération",resumed["last_result"])
+
+    def test_resume_refuses_unfinished_dependencies_and_non_resumable_states(self):
+        with tempfile.TemporaryDirectory() as directory:
+            tasks=[
+                {"id":"parent","title":"Parent","status":"blocked","dependencies":[],"acceptance_criteria":[],"attempts":0,"files_modified":[],"verifications":[],"last_result":None},
+                {"id":"child","title":"Child","status":"interrupted","dependencies":["parent"],"acceptance_criteria":[],"attempts":0,"files_modified":[],"verifications":[],"last_result":None},
+                {"id":"finished","title":"Finished","status":"done","dependencies":[],"acceptance_criteria":[],"attempts":0,"files_modified":[],"verifications":[],"last_result":None},
+            ]
+            project,store=self._project_with_tasks(Path(directory),tasks)
+            error=io.StringIO()
+            with redirect_stderr(error):self.assertEqual(main(["resume","--project",str(project),"--task-id","child"]),2)
+            self.assertIn("dépendances non terminées",error.getvalue())
+            with redirect_stderr(error):self.assertEqual(main(["resume","--project",str(project),"--task-id","finished"]),2)
+            self.assertIn("état actuel",error.getvalue())
+            self.assertEqual([item["status"] for item in store.load()["tasks"]],["blocked","interrupted","done"])
 
     def test_plan_is_saved_and_added_only_after_interactive_approval(self):
         plan = {

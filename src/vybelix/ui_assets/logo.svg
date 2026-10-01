@@ -1,61 +1,57 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <!-- Vybelix Master Ambient Halo -->
-    <radialGradient id="codelixHalo" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#6366F1" stop-opacity="0.18" />
-      <stop offset="50%" stop-color="#EC4899" stop-opacity="0.08" />
+    <!-- Codelix Master Ambient Halo -->
+    <radialGradient id="codelixHalo" cx="50%" cy="50%" r="52%">
+      <stop offset="0%" stop-color="#EC4899" stop-opacity="0" />
+      <stop offset="45%" stop-color="#7C3AED" stop-opacity="0" />
       <stop offset="85%" stop-color="#05050A" stop-opacity="0" />
     </radialGradient>
 
-    <!-- Gradients -->
-    <linearGradient id="codelixGradBottom" x1="0%" y1="100%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#EC4899" />
-      <stop offset="100%" stop-color="#6366F1" />
-    </linearGradient>
 
-    <linearGradient id="codelixGradSpine" x1="0%" y1="100%" x2="0%" y2="0%">
-      <stop offset="0%" stop-color="#6366F1" />
-      <stop offset="100%" stop-color="#A855F7" />
-    </linearGradient>
-
-    <linearGradient id="codelixGradTop" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#A855F7" />
-      <stop offset="100%" stop-color="#6366F1" />
-    </linearGradient>
-
-    <linearGradient id="codelixGradChevron" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#A855F7" />
-      <stop offset="70%" stop-color="#6366F1" />
+    <!-- Violet-Rose Signature Gradients -->
+    <linearGradient id="codelixGradBottom" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED" />
       <stop offset="100%" stop-color="#EC4899" />
     </linearGradient>
 
-    <linearGradient id="codelixGradContinuous" x1="0%" y1="100%" x2="100%" y2="0%">
+    <linearGradient id="codelixGradSpine" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#EC4899" />
-      <stop offset="45%" stop-color="#6366F1" />
-      <stop offset="100%" stop-color="#A855F7" />
+      <stop offset="50%" stop-color="#D946EF" />
+      <stop offset="100%" stop-color="#7C3AED" />
+    </linearGradient>
+
+    <linearGradient id="codelixGradTop" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#EC4899" />
+      <stop offset="60%" stop-color="#7C3AED" />
+      <stop offset="100%" stop-color="#00BFFF" />
+    </linearGradient>
+
+    <linearGradient id="codelixGradChevron" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EC4899" />
+      <stop offset="50%" stop-color="#F43F5E" />
+      <stop offset="100%" stop-color="#7C3AED" />
+    </linearGradient>
+
+    <linearGradient id="codelixGradContinuous" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7C3AED" />
+      <stop offset="45%" stop-color="#EC4899" />
+      <stop offset="100%" stop-color="#00BFFF" />
     </linearGradient>
 
 
-    <filter id="codelixGlow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur1" />
-      <feGaussianBlur in="SourceGraphic" stdDeviation="16" result="blur2" />
-      <feMerge>
-        <feMergeNode in="blur2" />
-        <feMergeNode in="blur1" />
-        <feMergeNode in="SourceGraphic" />
-      </feMerge>
-    </filter>
   </defs>
 
+<g >
 
-  <circle cx="256" cy="256" r="230" fill="url(#codelixHalo)" pointer-events="none" />
-
-  <g filter="url(#codelixGlow)">
-
-    <path d="M 374.2 348.4 A 150 150 0 1 1 374.2 163.6" fill="none" stroke="url(#codelixGradContinuous)" stroke-width="46" stroke-linecap="round" />
-    <path d="M 236 200 L 302 256 L 236 312" fill="none" stroke="url(#codelixGradChevron)" stroke-width="40" stroke-linecap="round" stroke-linejoin="round" />
-    <line x1="316" y1="312" x2="346" y2="312" stroke="#A855F7" stroke-width="32" stroke-linecap="round" />
+    <!-- Segment 1: Left Wing Blade -->
+    <path d="M 138 130 L 194 256" fill="none" stroke="url(#codelixGradBottom)" stroke-width="52" stroke-linecap="round" />
+    <!-- Segment 2: Vertex Anchor (Apex) -->
+    <path d="M 214 302 L 256 398 L 298 302" fill="none" stroke="url(#codelixGradSpine)" stroke-width="52" stroke-linecap="round" stroke-linejoin="round" />
+    <!-- Segment 3: Right Wing Blade -->
+    <path d="M 318 256 L 374 130" fill="none" stroke="url(#codelixGradTop)" stroke-width="52" stroke-linecap="round" />
+    <!-- Small Inner Elevated V: Completely detached, elevated higher in the upper valley -->
+    <path d="M 214 140 L 256 236 L 298 140" fill="none" stroke="url(#codelixGradChevron)" stroke-width="46" stroke-linecap="round" stroke-linejoin="round" />
 
   </g>
 </svg>

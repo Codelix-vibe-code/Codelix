@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project_id": "vybelix",
-  "updated_at": "2026-09-30T16:11:51Z",
+  "updated_at": "2026-10-01T18:24:50Z",
   "tasks": [
     {
       "id": "phase-0-audit",
@@ -102,7 +102,9 @@
         "src/vybelix/providers/router.py",
         "src/vybelix/providers/__init__.py",
         "src/vybelix/config.py",
-        "tests/test_config.py"
+        "tests/test_config.py",
+        "src/vybelix/workflow.py",
+        "tests/test_workflow.py"
       ],
       "verifications": [
         {
@@ -268,9 +270,121 @@
             "Retry delays grow exponentially and include jitter",
             "The configured maximum retry count is bounded to three"
           ]
+        },
+        {
+          "command": "py -3.12 -B -m unittest discover -s tests",
+          "exit_code": 0,
+          "summary": "77 tests passed; route persistence and rejection of unconfigured providers are covered.",
+          "errors": [],
+          "execution_id": "2026-09-30T17:45:31Z",
+          "acceptance_criteria": [
+            "Provider routing behavior covered",
+            "Routes are persisted without changing secrets"
+          ]
+        },
+        {
+          "command": "Appels minimaux directs — Gemini, NVIDIA, Groq, OpenRouter, Mistral (30 s, sans retry; Chat Completions en JSON non-streamé)",
+          "exit_code": 1,
+          "summary": "Gemini HTTP 401; NVIDIA HTTP 200 mais InvalidResponseError (aucun texte exploitable en JSON non-streamé); Groq HTTP 403; OpenRouter HTTP 401; Mistral HTTP 429. Aucun secret affiché. Les vérifications historiques restent valides : NVIDIA GPT-OSS a répondu OK en streaming et Planner/Coder ont réussi via NVIDIA.",
+          "errors": [
+            "Accès compte Gemini/OpenRouter refusé",
+            "Accès compte Groq refusé",
+            "Quota ou débit Mistral limité",
+            "NVIDIA JSON non-streamé sans texte exploitable"
+          ],
+          "execution_id": "2026-09-30T17:54:14Z",
+          "acceptance_criteria": [
+            "Appel réel vérifié avec modèle et quota autorisés"
+          ]
+        },
+        {
+          "command": "Python 3.12.10 — PYTHONPATH=src python -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "77 tests réussis, dont tests des adaptateurs, erreurs, reprises bornées, fallback, configuration et persistance des routes.",
+          "errors": [],
+          "execution_id": "2026-09-30T17:54:14Z",
+          "acceptance_criteria": [
+            "Fallback et erreurs bornés testés",
+            "Adaptateurs et routage couverts par les tests"
+          ]
+        },
+        {
+          "command": "NVIDIA GPT-OSS 20B — appel minimal sur le chemin SSE par défaut (timeout 30 s, sans retry)",
+          "exit_code": 0,
+          "summary": "HTTP 200 en 0,9 s; l’adaptateur a décodé et renvoyé « OK ». Le chemin de streaming par défaut fonctionne.",
+          "errors": [],
+          "execution_id": "2026-09-30T17:54:14Z",
+          "acceptance_criteria": [
+            "Appel réel vérifié avec modèle et quota autorisés"
+          ]
+        },
+        {
+          "command": "Python 3.12.10 — PYTHONPATH=src python -B -m unittest discover -s tests",
+          "exit_code": 0,
+          "summary": "78 tests passed after changing the router to try configured fallback candidates after HTTP 401 and strengthening Planner/Coder JSON contract prompts.",
+          "errors": [],
+          "execution_id": "2026-09-30T18:26:28Z",
+          "acceptance_criteria": [
+            "Fallback and bounded error handling tested",
+            "Planner/Coder prompts describe the required JSON contract"
+          ]
+        },
+        {
+          "command": "Minimal live generation, one request per unique model in active routes, timeout 30 s and no retry",
+          "exit_code": 1,
+          "summary": "NVIDIA openai/gpt-oss-20b returned OK (HTTP 200); NVIDIA z-ai/glm-5.3 timed out; Gemini 3.8 and 3.7 returned 401; Groq openai/gpt-oss-20b returned 403. No keys or Authorization values were output.",
+          "errors": [
+            "Gemini HTTP 401",
+            "NVIDIA GLM timeout",
+            "Groq HTTP 403"
+          ],
+          "execution_id": "2026-09-30T18:26:28Z",
+          "acceptance_criteria": [
+            "Live call verified for configured models"
+          ]
+        },
+        {
+          "command": "Planner fallback smoke through active routes (no retries)",
+          "exit_code": 1,
+          "summary": "Router correctly skipped Gemini HTTP 401 and reached NVIDIA GPT-OSS, but the response used a legacy/nonconforming JSON shape; after strengthening the prompt, the next attempt timed out on NVIDIA GPT-OSS and GLM-5.3 (30 s each). Coder and verifier stages were not reached.",
+          "errors": [
+            "Planner response rejected by local schema validator",
+            "Fallback NVIDIA candidates timed out on the follow-up"
+          ],
+          "execution_id": "2026-09-30T18:26:28Z",
+          "acceptance_criteria": [
+            "Planner route reaches a model returning a locally accepted contract"
+          ]
+        },
+        {
+          "command": "Workflow Planner avec routes actives, délai config 60 s et zéro retry",
+          "exit_code": 1,
+          "summary": "Le routeur a passé Gemini après HTTP 401; NVIDIA openai/gpt-oss-20b puis z-ai/glm-5.3 ont tous deux expiré au délai de 60 s. Aucun plan valide, étape Coder non atteinte.",
+          "errors": [
+            "Gemini HTTP 401",
+            "NVIDIA GPT-OSS timeout 60 s",
+            "NVIDIA GLM-5.3 timeout 60 s"
+          ],
+          "execution_id": "2026-09-30T18:32:43Z",
+          "acceptance_criteria": [
+            "Planner route reaches a model returning a locally accepted contract"
+          ]
+        },
+        {
+          "command": "OpenRouter openai/gpt-oss-20b and Mistral mistral-small-latest — one minimal SSE call each, timeout 30 s, no retry",
+          "exit_code": 1,
+          "summary": "OpenRouter raised NetworkError without an HTTP status after 42.1 s; Mistral returned HTTP 429. No key or Authorization header was printed.",
+          "errors": [
+            "OpenRouter network error before HTTP status",
+            "Mistral rate/quota limit HTTP 429"
+          ],
+          "execution_id": "2026-09-30T18:48:18Z",
+          "acceptance_criteria": [
+            "Live calls verified for requested providers"
+          ]
         }
       ],
-      "last_result": "Adapters corrected; all 73 tests pass. NVIDIA GPT-OSS 20B returned OK; planner and coder router smoke calls succeeded via NVIDIA GPT-OSS. Gemini GenerateContent returned HTTP 200/OK once but subsequent calls returned HTTP 503. NVIDIA GLM-5.3 and DeepSeek timed out at 60 seconds. Groq returned HTTP 403 again on a minimal streaming generation. Tester route remains unconfirmed; further calls paused to limit free-tier RPM. Phase remains in review pending provider access. Provider engine now also wires OpenRouter and Mistral through the shared Chat Completions adapter; model routes were not selected or changed. Gemini errors now surface a sanitized provider message for 5xx diagnostics, and unsupported MINIMAL thinking is rejected. 74 unit tests pass. Live Gemini calls still returned HTTP 503 on both Gemini 3.8 and 3.7 with and without generationConfig; that service/account issue remains unresolved. Bounded exponential backoff with jitter is now available for retryable 429/5xx/network errors; the local config and example enable two retries maximum. Official Google documentation recommends bounded exponential backoff for 503/429, but does not establish free-tier status as the cause of these failures. 75 tests pass. Gemini account/service availability remains unresolved."
+      "last_result": "Routeur corrigé : un HTTP 401 saute maintenant au candidat explicitement configuré suivant, sans retry de la clé refusée. Les prompts Planner/Coder explicitent les champs exacts et la chaîne schema_version 1.0. 78 tests réussis. Appels minimaux des modèles actifs : NVIDIA GPT-OSS répond OK; Gemini 3.8/3.7 renvoient 401; Groq renvoie 403; NVIDIA GLM expire à 30 s. Smoke Planner avec les routes réelles et délais config 60 s : Gemini 401 puis timeout NVIDIA GPT-OSS et GLM; une réponse antérieure du GPT-OSS avait un ancien schéma rejeté par le validateur. Aucune étape Coder/Verifier complète atteinte; aucun fichier de projet généré appliqué ou exécuté. Phase reste needs_review en attente d’accès API et d’une réponse Planner conforme. L’approbation automatique a rejeté l’application/exécution d’un code généré avant examen humain du contenu exact. Additional requested tests: OpenRouter generation ended in a NetworkError without HTTP status after 42.1 s; Mistral returned HTTP 429. Both remain unavailable in current tests."
     },
     {
       "id": "phase-3-controlled-execution",
@@ -722,7 +836,7 @@
     {
       "id": "phase-7-package-installation-verification",
       "title": "Valider build et installation sous Python 3.12",
-      "status": "todo",
+      "status": "done",
       "dependencies": [
         "phase-7-vybelix-identity-and-handoff"
       ],
@@ -732,10 +846,47 @@
         "Vérifier vybelix, les ressources UI empaquetées et les imports historiques codelix",
         "Ne retirer les shims src/codelix qu’après validation et décision explicite de compatibilité"
       ],
-      "attempts": 0,
-      "files_modified": [],
-      "verifications": [],
-      "last_result": "À faire. L’environnement utilisé pour la migration n’avait que Python 3.14.7 et aucun setuptools.build_meta; aucune installation n’a été effectuée."
+      "attempts": 1,
+      "files_modified": [
+        "pyproject.toml",
+        "src/vybelix/",
+        "src/codelix/"
+      ],
+      "verifications": [
+        {
+          "command": "Python 3.12.10 isolated venv: pip wheel --no-deps --no-build-isolation .",
+          "exit_code": 0,
+          "summary": "Built vybelix-0.1.0-py3-none-any.whl using setuptools 84.0.0 in a temporary virtual environment.",
+          "errors": [],
+          "execution_id": "2026-09-30T17:45:31Z",
+          "acceptance_criteria": [
+            "Wheel builds with Python 3.12.x and setuptools"
+          ]
+        },
+        {
+          "command": "Install wheel in isolated Python 3.12.10 venv; import vybelix/codelix; inspect UI resource; run both CLI --help",
+          "exit_code": 0,
+          "summary": "Wheel installed; both package imports resolve, UI index.html is packaged, and vybelix/codelix CLI help succeeds. Compatibility shims retained.",
+          "errors": [],
+          "execution_id": "2026-09-30T17:45:31Z",
+          "acceptance_criteria": [
+            "Package installs",
+            "UI resources and historical imports are present",
+            "Both CLI entry points work"
+          ]
+        },
+        {
+          "command": "py -3.12 -B -m unittest discover -s tests",
+          "exit_code": 0,
+          "summary": "77 tests passed under Python 3.12.10.",
+          "errors": [],
+          "execution_id": "2026-09-30T17:45:31Z",
+          "acceptance_criteria": [
+            "Project suite passes on target Python"
+          ]
+        }
+      ],
+      "last_result": "Done: wheel built and installed in a temporary Python 3.12.10 virtual environment. vybelix and codelix imports, packaged UI asset, and both CLI entry points verified. Compatibility shims remain in place; no removal decision was necessary."
     },
     {
       "id": "ui-11-glass-theme-and-simplified-tasks",
@@ -784,21 +935,20 @@
           ]
         }
       ],
-      "last_result": "Thème glassmorphism bleu-violet/cyan/magenta et vue Tâches simplifiée. Logo lockup transparent, mouvement et halo conservés. Écran Assistant sans suggestions prédéfinies; envoi explicite et plan en dessous. Police Sora variable appliquée globalement, ExtraBold 800 sur les titres. Fond global violet sombre #10091F avec panneaux glass. Rendus Terminal, Vérification, Git et Historique séparés. Conteneur commun doté d’une surface translucide glass, liseré dégradé arrondi à 24 px et 8 px d’espacement entre petites cartes successives. Les surfaces glass partagées ont été assombries en préservant teintes et accents. Texte et placeholders blancs dans toute l’app. Lisibilité accrue par la typographie (libellés secondaires à 12 px minimum, graisse 500, interligne 1.5), sans modifier la palette. Git diff --check propre; aucun test automatisé lancé. Changements locaux non commités/non poussés."
+      "last_result": "Thème glassmorphism bleu-violet/cyan/magenta et vue Tâches simplifiée. Logo lockup transparent, mouvement et halo conservés. Écran Assistant sans suggestions prédéfinies; envoi explicite et plan en dessous. Police Sora variable appliquée globalement, ExtraBold 800 sur les titres. Fond global violet sombre #10091F avec panneaux glass. Rendus Terminal, Vérification, Git et Historique séparés. Conteneur commun doté d’une surface translucide glass, liseré dégradé arrondi à 24 px et 8 px d’espacement entre petites cartes successives. Sur demande, toutes les surfaces glass (conteneurs, cartes, colonnes, chat, navigation active, formulaires, modales API et Skills) ont été harmonisées en violet/bleu nuit; reflets, bordures et halos clairs réduits, palette/texte/arrondis préservés, mode transparence réduite adapté. Vérification JavaScript et git diff --check réussis; aucun test automatisé lancé. Changements locaux non commités/non poussés."
     },
     {
       "id": "ui-12-local-api-keys-and-pin",
-      "title": "Aperçu frontend du gestionnaire API Keys",
+      "title": "Gestionnaire API Keys local relié aux fournisseurs",
       "status": "done",
       "dependencies": [
         "ui-11-glass-theme-and-simplified-tasks"
       ],
       "acceptance_criteria": [
-        "Le bouton Paramètres ouvre une fenêtre de gestion API Keys",
-        "L’aperçu comporte les écrans de création/confirmation PIN et de déverrouillage simulés",
-        "Le formulaire nom/clé permet d’ajouter plusieurs entrées, remplacer et retirer une entrée en mémoire",
-        "La page indique explicitement qu’aucune valeur n’est envoyée ou persistée",
-        "Le raccordement au backend et aux fournisseurs est fait dans une tâche séparée"
+        "Le PIN local protège le gestionnaire et expire après inactivité",
+        "Les clés sont ajoutées/remplacées/retirées via l’interface et enregistrées dans .env ignoré par Git",
+        "Aucune valeur de clé ne ressort dans les réponses de statut ou l’interface après saisie",
+        "Les fournisseurs configurés sont présentés dans Paramètres → API Keys"
       ],
       "attempts": 0,
       "files_modified": [
@@ -832,7 +982,342 @@
           ]
         }
       ],
-      "last_result": "Aperçu frontend seul : clic, modale, PIN simulé, formulaire nom/clé, ajouts multiples, remplacement et retrait en mémoire. Aucune clé ni aucun PIN envoyé au serveur ou écrit dans .env; toutes les entrées de démonstration disparaissent au rechargement. L’intégration backend/fournisseurs reste séparée. node --check et git diff --check réussis; aucun test automatisé lancé. Changements locaux non commités/non poussés."
+      "last_result": "Gestionnaire relié aux routes locales existantes; PIN vérifié côté serveur, clés écrites atomiquement dans .env ignoré par Git et statuts sans valeurs secrètes. Limite affichée dans l’UI : .env reste en clair sur disque; le PIN ne le chiffre pas."
+    },
+    {
+      "id": "ui-13-provider-model-routing-ui",
+      "title": "Sélecteur de modèles et routes d’agents depuis l’interface",
+      "status": "done",
+      "dependencies": [
+        "ui-12-local-api-keys-and-pin",
+        "phase-2-providers-routing"
+      ],
+      "acceptance_criteria": [
+        "L’utilisateur peut affecter un modèle à Planner, Coder ou Tester",
+        "L’ordre principal/secours est sauvegardé dans la configuration TOML active",
+        "Seuls les fournisseurs configurés et pris en charge peuvent être sélectionnés",
+        "La route limite chaque rôle à cinq candidats et refuse les doublons/identifiants invalides",
+        "Les routes sauvegardées sont réutilisées par le routeur des agents"
+      ],
+      "attempts": 1,
+      "files_modified": [
+        "src/vybelix/ui.py",
+        "src/vybelix/ui_actions.py",
+        "src/vybelix/ui_assets/app.js",
+        "src/vybelix/ui_assets/app.css",
+        "tests/test_ui.py"
+      ],
+      "verifications": [
+        {
+          "command": "py -3.12 -B -m unittest discover -s tests",
+          "exit_code": 0,
+          "summary": "77 tests pass, including TOML route order persistence and rejection of an unconfigured provider.",
+          "errors": [],
+          "execution_id": "2026-09-30T17:45:31Z",
+          "acceptance_criteria": [
+            "Route selection persists safely",
+            "Invalid provider selection does not modify configuration"
+          ]
+        }
+      ],
+      "last_result": "Completed. Models page adds/removes candidates by role and primary/fallback order; API Keys modal can save a credential then assign the chosen model to an agent. The backend validates providers/models and atomically updates only [models] in the active TOML file. No live generation call was made."
+    },
+    {
+      "id": "skill-builder-local-foundation",
+      "title": "Skill Builder local — schémas, validation et registre",
+      "status": "done",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Contrats manifest et capabilities versionnés",
+        "CLI permet brouillon, validation, liste et gestion explicite des installations locales",
+        "Les skills restent désactivés après installation et l’activation exige un accord explicite sur les permissions",
+        "Validation défensive, empreinte d’intégrité et audit local sont disponibles",
+        "Aucun code de skill n’est exécuté sans sandbox isolé",
+        "Une interface Skills permet de créer un brouillon, inspecter les permissions et gérer les skills locaux avec confirmation",
+        "Les dépendances sont détectées/vérifiées sans installation silencieuse",
+        "La configuration est validée; les secrets sont chiffrés séparément sur Windows",
+        "Les mises à jour locales exigent une version supérieure et laissent le skill désactivé",
+        "Les tests statiques et le contexte local des agents passent par le Skill Manager",
+        "L’exécution reste fermée tant qu’un backend sandbox n’est pas disponible et validé"
+      ],
+      "attempts": 2,
+      "files_modified": [
+        "PROJECT_STATUS.md",
+        "docs/progress/NEXT_CODEX.md",
+        "docs/progress/tasks.json",
+        "docs/skills/README.md",
+        "docs/skills/SPEC_SKILL_BUILDER.md",
+        "schemas/skill-capabilities-v1.schema.json",
+        "schemas/skill-v1.schema.json",
+        "sessions.md",
+        "src/vybelix/cli.py",
+        "src/vybelix/skills/__init__.py",
+        "src/vybelix/skills/bridge.py",
+        "src/vybelix/skills/manager.py",
+        "src/vybelix/skills/secure_store.py",
+        "src/vybelix/ui.py",
+        "src/vybelix/ui_actions.py",
+        "src/vybelix/ui_assets/app.css",
+        "src/vybelix/ui_assets/app.js",
+        "src/vybelix/ui_assets/index.html",
+        "tests/test_skills.py"
+      ],
+      "verifications": [
+        {
+          "command": "node --check src/vybelix/ui_assets/app.js",
+          "exit_code": 0,
+          "summary": "Syntaxe JavaScript valide pour la vue Skills.",
+          "errors": [],
+          "execution_id": "2026-09-30T16:42:00Z",
+          "acceptance_criteria": [
+            "Vue Skills valide syntaxiquement"
+          ]
+        },
+        {
+          "command": "ast.parse sur src/vybelix/ui.py et src/vybelix/ui_actions.py",
+          "exit_code": 0,
+          "summary": "Syntaxe Python valide pour les routes et actions Skills.",
+          "errors": [],
+          "execution_id": "2026-09-30T16:42:00Z",
+          "acceptance_criteria": [
+            "Routes et actions UI Skills valides syntaxiquement"
+          ]
+        },
+        {
+          "command": "python -c ast.parse sur les modules Skill Builder/CLI + json.loads sur les schémas et tasks.json",
+          "exit_code": 0,
+          "summary": "Syntaxe Python et documents JSON valides.",
+          "errors": [],
+          "execution_id": "2026-09-30T16:35:48Z",
+          "acceptance_criteria": [
+            "Modules et contrats lisibles par les parseurs"
+          ]
+        },
+        {
+          "command": "git diff --check",
+          "exit_code": 0,
+          "summary": "Aucune erreur de whitespace détectée.",
+          "errors": [],
+          "execution_id": "2026-09-30T16:35:48Z",
+          "acceptance_criteria": [
+            "Diff propre"
+          ]
+        },
+        {
+          "command": "py -3.12 -B -m unittest discover -s tests -v (PYTHONPATH=src)",
+          "exit_code": 0,
+          "summary": "86 tests réussis, dont 7 tests Skill Builder; aucune requête réseau/API réelle.",
+          "errors": [],
+          "execution_id": "2026-10-01T14:31:23Z",
+          "acceptance_criteria": [
+            "Dépendances, configuration, DPAPI simulé, intégrité, mises à jour et SkillBridge vérifiés"
+          ]
+        },
+        {
+          "command": "Protection DPAPI Windows avec valeur factice",
+          "exit_code": 0,
+          "summary": "La chaîne factice est devenue un blob chiffré distinct; aucun secret réel lu.",
+          "errors": [],
+          "execution_id": "2026-10-01T14:31:23Z",
+          "acceptance_criteria": [
+            "Secrets de configuration stockés séparément et protégés par DPAPI utilisateur"
+          ]
+        },
+        {
+          "command": "node --check src/vybelix/ui_assets/app.js && git diff --check",
+          "exit_code": 0,
+          "summary": "Syntaxe JavaScript valide et aucune erreur de whitespace dans le diff.",
+          "errors": [],
+          "execution_id": "2026-10-01T14:31:23Z",
+          "acceptance_criteria": [
+            "Vue Skills mise à jour syntaxiquement valide"
+          ]
+        },
+        {
+          "command": "py -3.12 -B -m unittest tests.test_skills -v",
+          "exit_code": 0,
+          "summary": "8 tests Skill Builder réussis; cas catalogue mise à jour et intégrité altérée couverts.",
+          "errors": [],
+          "execution_id": "2026-10-01T14:54:16Z",
+          "acceptance_criteria": [
+            "Catalogue signale les nouvelles versions locales",
+            "Un package altéré échoue proprement au diagnostic statique"
+          ]
+        },
+        {
+          "command": "py -3.12 -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "93 tests réussis, dont 8 Skill Builder; aucun code fourni par un skill ni aucun appel fournisseur exécuté.",
+          "errors": [],
+          "execution_id": "2026-10-01T14:54:16Z",
+          "acceptance_criteria": [
+            "Suite complète réussie après corrections Skill Builder"
+          ]
+        },
+        {
+          "command": "node --check src/vybelix/ui_assets/app.js && git diff --check",
+          "exit_code": 0,
+          "summary": "JavaScript valide et aucune erreur de whitespace.",
+          "errors": [],
+          "execution_id": "2026-10-01T14:54:16Z",
+          "acceptance_criteria": [
+            "UI et diff valides"
+          ]
+        }
+      ],
+      "last_result": "MVP local de gestion terminé : création, validation, installation contrôlée et désactivée, permissions explicites, audit, intégrité, configuration secrète DPAPI, dépendances sans installation, mises à jour désactivées, diagnostics statiques et interface locale. Corrigé le catalogue des mises à jour (variable de skill manquante) et rendu le diagnostic d’intégrité résilient en cas de package altéré. 93 tests passent. L’exécution du code reste fermée : sandbox avancée classée post-MVP et aucun runtime isolé disponible sur ce poste; aucun skill ni appel fournisseur n’a été exécuté."
+    },
+    {
+      "id": "phase-5-context-and-resume",
+      "title": "Contexte compact de projet et reprise contrôlée des tâches",
+      "status": "done",
+      "dependencies": [
+        "phase-1-foundations",
+        "phase-5-cli-stabilization",
+        "phase-6-ui-04-tasks",
+        "phase-6-ui-09-settings"
+      ],
+      "acceptance_criteria": [
+        "Le contexte projet local est validé, limité en taille, rattaché au bon projet et filtre les secrets et chemins sensibles",
+        "La CLI peut afficher et mettre à jour ce contexte sans appel modèle",
+        "Le cockpit peut éditer le contexte local dans Paramètres sans l’envoyer automatiquement aux modèles",
+        "Une tâche bloquée ou interrompue ne peut être remise en attente qu’après confirmation et vérification de ses dépendances",
+        "La reprise ne lance aucun agent et conserve tentatives, fichiers et vérifications existants"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "README.md",
+        "PROJECT_STATUS.md",
+        "docs/progress/NEXT_CODEX.md",
+        "docs/progress/tasks.json",
+        "sessions.md",
+        "src/vybelix/cli.py",
+        "src/vybelix/project_context.py",
+        "src/vybelix/ui.py",
+        "src/vybelix/ui_actions.py",
+        "src/vybelix/ui_assets/app.css",
+        "src/vybelix/ui_assets/app.js",
+        "tests/test_cli.py",
+        "tests/test_project_context.py",
+        "tests/test_ui.py"
+      ],
+      "verifications": [
+        {
+          "command": "py -3.12 -B -m unittest discover -s tests -v",
+          "exit_code": 0,
+          "summary": "92 tests réussis; aucun appel réseau fournisseur ni génération réelle.",
+          "errors": [],
+          "execution_id": "2026-10-01T14:47:37Z",
+          "acceptance_criteria": [
+            "Les tests CLI, contexte local et actions/UI passent"
+          ]
+        },
+        {
+          "command": "node --check src/vybelix/ui_assets/app.js",
+          "exit_code": 0,
+          "summary": "Syntaxe JavaScript valide.",
+          "errors": [],
+          "execution_id": "2026-10-01T14:47:37Z",
+          "acceptance_criteria": [
+            "Le JavaScript du cockpit est syntaxiquement valide"
+          ]
+        },
+        {
+          "command": "git diff --check",
+          "exit_code": 0,
+          "summary": "Aucune erreur d’espacement dans les modifications suivies.",
+          "errors": [],
+          "execution_id": "2026-10-01T14:47:37Z",
+          "acceptance_criteria": [
+            "Le diff est propre"
+          ]
+        }
+      ],
+      "last_result": "Contexte compact disponible via CLI et Paramètres du cockpit, enregistré localement et validé; reprise explicite des tâches bloquées/interrompues intégrée à la CLI et à la vue Tâches. Aucun agent n’est démarré automatiquement. 92 tests passent. Phase 2 reste needs_review et n’a pas été modifiée dans cette étape."
+    },
+    {
+      "id": "task_1",
+      "title": "Implémenter la commande `hello` dans src/vybelix/cli.py",
+      "status": "todo",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "La fonction `hello` est définie et enregistrée sous la commande `hello` dans le groupe de commandes Click.",
+        "L’exécution de la commande `vybelix hello` produit la sortie \"Hello Vybelix\\n\" sans rien d’autre."
+      ],
+      "attempts": 0,
+      "files_modified": [],
+      "verifications": [],
+      "last_result": "Plan approuvé depuis l’interface."
+    },
+    {
+      "id": "task_2",
+      "title": "Écrire un test unitaire dans tests/test_cli.py",
+      "status": "todo",
+      "dependencies": [
+        "task_1"
+      ],
+      "acceptance_criteria": [
+        "Un test nommé `test_cli_hello` est présent dans `tests/test_cli.py`.",
+        "Le test passe avec `pytest -q` en vérifiant la sortie et le code de retour."
+      ],
+      "attempts": 0,
+      "files_modified": [],
+      "verifications": [],
+      "last_result": "Plan approuvé depuis l’interface."
+    },
+    {
+      "id": "phase-7-workflow-feedback-ui",
+      "title": "Stabiliser les rôles Planner/Coder/Tester et les diagnostics UI",
+      "status": "done",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Le Planner ne propose que des tâches exécutables par Coder ou Tester et affecte le rôle selon le travail demandé",
+        "Coder et Tester disposent de consignes système distinctes; Coder reçoit le contrat JSON brut exact",
+        "Les propositions peuvent être refusées ou désapprouvées sans retirer des tâches déjà commencées",
+        "Les diagnostics UI restent visibles une minute, s’accumulent et affichent le texte long"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "src/vybelix/contracts.py",
+        "src/vybelix/workflow.py",
+        "src/vybelix/ui_actions.py",
+        "src/vybelix/ui_assets/app.js",
+        "src/vybelix/ui_assets/app.css",
+        "src/vybelix/ui_assets/index.html"
+      ],
+      "verifications": [
+        {
+          "command": "Python ast.parse sur contracts.py, workflow.py et ui_actions.py",
+          "exit_code": 0,
+          "summary": "Syntaxe Python valide; aucun appel modèle.",
+          "errors": [],
+          "execution_id": "2026-10-01T18:24:50+00:00",
+          "acceptance_criteria": [
+            "Les fichiers Python modifiés sont syntaxiquement valides"
+          ]
+        },
+        {
+          "command": "node --check src/vybelix/ui_assets/app.js",
+          "exit_code": 0,
+          "summary": "Syntaxe JavaScript valide.",
+          "errors": [],
+          "execution_id": "2026-10-01T18:24:50+00:00",
+          "acceptance_criteria": [
+            "Le JavaScript des notifications est syntaxiquement valide"
+          ]
+        },
+        {
+          "command": "git diff --check",
+          "exit_code": 0,
+          "summary": "Aucune erreur de whitespace.",
+          "errors": [],
+          "execution_id": "2026-10-01T18:24:50+00:00",
+          "acceptance_criteria": [
+            "Le diff est propre"
+          ]
+        }
+      ],
+      "last_result": "Consignes Planner renforcées pour générer des tâches actionnables Coder/Tester; validateurs imposent la cohérence rôle/type aux nouveaux plans. Prompts Coder et Tester séparés, prompt Coder explicite sur JSON brut strict. Désapprobation sûre limitée aux tâches non commencées sans dépendants externes. Notifications conservées 60 s, empilées et multilignes. Aucun appel de génération ni test de modèle; suite complète non relancée."
     }
   ]
 }

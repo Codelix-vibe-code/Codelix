@@ -36,6 +36,19 @@ class PlannerContractTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             validate_planner_output(plan(), expected_project_id="other")
 
+    def test_normalizes_common_task_type_aliases(self):
+        value = plan()
+        value["tasks"][0]["type"] = "implementation"
+        normalized = validate_planner_output(value)
+        self.assertEqual(normalized["tasks"][0]["type"], "code")
+        self.assertEqual(value["tasks"][0]["type"], "code")
+
+    def test_rejects_unknown_task_type_with_received_value(self):
+        value = plan()
+        value["tasks"][0]["type"] = "unrecognized"
+        with self.assertRaisesRegex(ContractError, "unrecognized"):
+            validate_planner_output(value)
+
     def test_rejects_duplicate_ids(self):
         with self.assertRaises(ContractError):
             validate_planner_output(plan([task("same"), task("same")]))
@@ -57,6 +70,21 @@ class PlannerContractTests(unittest.TestCase):
         value["affected_paths"] = ["../outside.py"]
         with self.assertRaises(ContractError):
             validate_planner_output(value)
+
+    def test_normalizes_trailing_slash_on_affected_directory(self):
+        value = plan()
+        value["affected_paths"] = ["src/"]
+        normalized = validate_planner_output(value)
+        self.assertEqual(normalized["affected_paths"], ["src"])
+        self.assertEqual(value["affected_paths"], ["src/"])
+
+    def test_rejects_malformed_trailing_slash_paths(self):
+        for unsafe in ("../src/", "src//", "/src/", "C:/src/"):
+            with self.subTest(path=unsafe):
+                value = plan()
+                value["affected_paths"] = [unsafe]
+                with self.assertRaises(ContractError):
+                    validate_planner_output(value)
 
 
 class CoderContractTests(unittest.TestCase):

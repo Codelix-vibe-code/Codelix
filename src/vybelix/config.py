@@ -7,10 +7,22 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 
 class ConfigurationError(ValueError):
     """La configuration locale est invalide."""
+
+
+_PROVIDER_API_HOSTS = {
+    "openai": "api.openai.com",
+    "anthropic": "api.anthropic.com",
+    "gemini": "generativelanguage.googleapis.com",
+    "nvidia": "integrate.api.nvidia.com",
+    "groq": "api.groq.com",
+    "openrouter": "openrouter.ai",
+    "mistral": "api.mistral.ai",
+}
 
 
 @dataclass(frozen=True)
@@ -33,6 +45,8 @@ class VybelixConfig:
     providers: dict[str, ProviderSettings]
     models: dict[str, tuple[str, ...]]
     allowed_commands: tuple[str, ...]
+    user_level: str = "beginner"
+    user_level_selected: bool = False
 
 
 def _mapping(value: Any, name: str) -> dict[str, Any]:
@@ -55,9 +69,18 @@ def _integer(value: Any, name: str, minimum: int, maximum: int) -> int:
 
 def validate_config(raw: Any) -> VybelixConfig:
     data = _mapping(raw, "racine")
-    _only_keys(data, {"schema_version", "runtime", "providers", "models", "verifier"}, "racine")
+    _only_keys(data, {"schema_version", "runtime", "providers", "models", "verifier", "user"}, "racine")
     if data.get("schema_version") != "1.0":
         raise ConfigurationError("schema_version doit être '1.0'.")
+
+    user_data = _mapping(data.get("user", {}), "user")
+    _only_keys(user_data, {"level", "level_selected"}, "user")
+    user_level = user_data.get("level", "beginner")
+    user_level_selected = user_data.get("level_selected", False)
+    if user_level not in {"beginner", "intermediate", "pro"}:
+        raise ConfigurationError("user.level doit être beginner, intermediate ou pro.")
+    if not isinstance(user_level_selected, bool):
+        raise ConfigurationError("user.level_selected doit être un booléen.")
 
     runtime_data = _mapping(data.get("runtime", {}), "runtime")
     _only_keys(
@@ -79,8 +102,28 @@ def validate_config(raw: Any) -> VybelixConfig:
         _only_keys(provider, {"base_url", "api_key_env"}, f"providers.{name}")
         base_url = provider.get("base_url", "")
         key_env = provider.get("api_key_env", "")
-        if not isinstance(base_url, str) or (base_url and not base_url.startswith("https://")):
-            raise ConfigurationError(f"providers.{name}.base_url doit être vide ou commencer par https://.")
+        if not isinstance(base_url, str):
+            raise ConfigurationError(f"providers.{name}.base_url doit être une URL HTTPS autorisée.")
+        if base_url:
+            try:
+                parsed_url = urlsplit(base_url)
+                valid_port = parsed_url.port in {None, 443}
+            except ValueError:
+                parsed_url = None
+                valid_port = False
+            if (
+                parsed_url is None
+                or parsed_url.scheme != "https"
+                or parsed_url.hostname != _PROVIDER_API_HOSTS.get(name)
+                or not valid_port
+                or parsed_url.username is not None
+                or parsed_url.password is not None
+                or parsed_url.query
+                or parsed_url.fragment
+            ):
+                raise ConfigurationError(
+                    f"providers.{name}.base_url doit utiliser l’hôte HTTPS officiel du fournisseur."
+                )
         if not isinstance(key_env, str) or (key_env and not key_env.replace("_", "").isalnum()):
             raise ConfigurationError(f"providers.{name}.api_key_env doit être un nom de variable valide.")
         providers[name] = ProviderSettings(base_url=base_url, api_key_env=key_env)
@@ -101,7 +144,7 @@ def validate_config(raw: Any) -> VybelixConfig:
     allowed = verifier.get("allowed_commands", [])
     if not isinstance(allowed, list) or any(not isinstance(item, str) or not item.strip() for item in allowed):
         raise ConfigurationError("verifier.allowed_commands doit être une liste de commandes non vides.")
-    return VybelixConfig(runtime, providers, models, tuple(allowed))
+    return VybelixConfig(runtime, providers, models, tuple(allowed), user_level, user_level_selected)
 
 
 def load_config(path: Path) -> VybelixConfig:

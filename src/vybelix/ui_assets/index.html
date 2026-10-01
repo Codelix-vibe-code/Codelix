@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#05050A">
+  <meta name="theme-color" content="#080611">
   <title>Vybelix — Workspace</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/app.css">
@@ -13,8 +13,7 @@
   <div class="app-shell">
     <header class="topbar">
       <a class="brand" href="#dashboard" aria-label="Vybelix dashboard">
-        <img src="/logo.svg" alt="" class="brand-mark">
-        <span>VYBELIX</span>
+        <img src="/logo-lockup.png" alt="Vybelix — AI Software Orchestration" class="brand-mark">
       </a>
       <div class="project-identity">
         <span class="project-name" id="project-name">Chargement du projet…</span>
@@ -23,6 +22,7 @@
       </div>
       <div class="top-actions">
         <span class="connection" id="connection-state"><i></i><span>Connexion locale…</span></span>
+        <button class="icon-button" id="open-tour" type="button" aria-label="Ouvrir le guide de Vybelix" title="Découvrir Vybelix">?</button>
         <button class="icon-button" id="open-settings" type="button" aria-label="Paramètres" title="Ouvrir les paramètres">⚙</button>
       </div>
     </header>
@@ -30,23 +30,24 @@
     <aside class="sidebar" aria-label="Navigation principale">
       <div class="nav-group">
         <span class="nav-label">ESPACE PROJET</span>
-        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Dashboard</span></button>
-        <button class="nav-item" data-view="chat"><span class="nav-icon">◈</span><span>Chat</span></button>
-        <button class="nav-item" data-view="tasks"><span class="nav-icon">▣</span><span>Tasks</span><span class="nav-count" id="attention-count" hidden>0</span></button>
+        <button class="nav-item active" data-view="dashboard"><span class="nav-icon">⌂</span><span>Accueil</span></button>
+        <button class="nav-item" data-view="chat"><span class="nav-icon">◈</span><span>Assistant</span></button>
+        <button class="nav-item" data-view="tasks"><span class="nav-icon">▣</span><span>Tâches</span><span class="nav-count" id="attention-count" hidden>0</span></button>
         <button class="nav-item" data-view="agents"><span class="nav-icon">◉</span><span>Agents</span></button>
-        <button class="nav-item" data-view="models"><span class="nav-icon">◫</span><span>Models</span></button>
+        <button class="nav-item" data-view="models"><span class="nav-icon">◫</span><span>Modèles</span></button>
+        <button class="nav-item" data-view="skills"><span class="nav-icon">✧</span><span>Skills</span></button>
       </div>
       <div class="nav-group">
         <span class="nav-label">OUTILS</span>
-        <button class="nav-item" data-view="files"><span class="nav-icon">⌘</span><span>Files</span></button>
-        <button class="nav-item" data-view="changes"><span class="nav-icon">Δ</span><span>Changes</span></button>
+        <button class="nav-item" data-view="files"><span class="nav-icon">⌘</span><span>Fichiers</span></button>
+        <button class="nav-item" data-view="changes"><span class="nav-icon">Δ</span><span>Modifications</span></button>
         <button class="nav-item" data-view="terminal"><span class="nav-icon">&gt;_</span><span>Terminal</span></button>
-        <button class="nav-item" data-view="verification"><span class="nav-icon">✓</span><span>Verification</span></button>
+        <button class="nav-item" data-view="verification"><span class="nav-icon">✓</span><span>Vérification</span></button>
         <button class="nav-item" data-view="git"><span class="nav-icon">⑂</span><span>Git</span></button>
-        <button class="nav-item" data-view="history"><span class="nav-icon">◷</span><span>History</span></button>
+        <button class="nav-item" data-view="history"><span class="nav-icon">◷</span><span>Historique</span></button>
       </div>
       <div class="sidebar-bottom">
-        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+        <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span><span>Paramètres</span></button>
         <div class="sidebar-note"><span class="note-dot"></span><span>Mode local · sur action</span></div>
       </div>
     </aside>
@@ -87,12 +88,22 @@
       <div class="context-footnote"><span class="shield">◇</span><span>Aucun appel IA ni écriture au chargement. Les modèles sont appelés uniquement après une action ; toute écriture exige une approbation.</span></div>
     </aside>
 
+    <div class="level-onboarding-overlay" id="level-onboarding" hidden>
+      <section class="level-onboarding-card" role="dialog" aria-modal="true" aria-labelledby="level-onboarding-title">
+        <span class="level-onboarding-mark">V</span>
+        <p class="eyebrow">PERSONNALISATION</p>
+        <h2 id="level-onboarding-title">Quel est ton niveau ?</h2>
+        <p class="level-onboarding-intro">Choisis la façon dont Vybelix t’explique les plans et les résultats. Tu pourras modifier ce choix dans Paramètres.</p>
+        <div id="level-choice-content"></div>
+      </section>
+    </div>
+
     <footer class="statusbar" aria-label="État du système">
       <span class="status-item"><i class="status-dot idle" id="agent-planner-dot"></i>Planner <b id="agent-planner-state">—</b></span>
       <span class="status-item"><i class="status-dot idle" id="agent-coder-dot"></i>Coder <b id="agent-coder-state">—</b></span>
       <span class="status-item"><i class="status-dot idle" id="agent-tester-dot"></i>Tester <b id="agent-tester-state">—</b></span>
       <span class="status-item"><i class="status-check">✓</i>Verifier <b id="agent-verifier-state">—</b></span>
-      <span class="status-spacer"></span>
+      <span class="action-notice-slot" id="action-notice-slot"></span>
       <span class="status-item" id="status-task-count">0 tâche</span>
       <span class="status-item" id="status-git">Git —</span>
     </footer>

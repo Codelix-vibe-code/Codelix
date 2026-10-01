@@ -8,11 +8,13 @@ import time
 from typing import Any, Protocol
 
 from ..config import VybelixConfig
-from .errors import ProviderError, RoutingError
+from .errors import AuthenticationError, ProviderError, RoutingError
+from .anthropic import AnthropicAdapter
 from .gemini import GeminiAdapter
 from .groq import GroqAdapter
 from .nvidia import NvidiaAdapter
 from .mistral import MistralAdapter
+from .openai import OpenAIAdapter
 from .openrouter import OpenRouterAdapter
 
 
@@ -66,7 +68,7 @@ class ModelRouter:
         if not isinstance(candidate, str) or ":" not in candidate:
             raise RoutingError("Candidat invalide ; format attendu : fournisseur:modèle.")
         provider, model = candidate.split(":", 1)
-        if not provider or not model or ":" in model:
+        if not provider or not model:
             raise RoutingError("Candidat invalide ; format attendu : fournisseur:modèle.")
         return provider, model
 
@@ -82,16 +84,33 @@ class ModelRouter:
             self.last_trace = ()
             raise RoutingError(f"Aucun modèle configuré pour le rôle {role}.")
 
-        for candidate in candidates:
+        for candidate_index, candidate in enumerate(candidates):
             provider_name, model = self._candidate(candidate)
             provider = self.providers.get(provider_name)
             if provider is None:
                 trace.append(RouteAttempt(provider_name, model, 0, "provider_unavailable", message="Fournisseur non configuré."))
                 continue
+            candidate_options = options
+            if candidate_options is None:
+                # Keep JSON-producing workflow calls from relying on each
+                # vendor's undocumented output limit. Option names differ by
+                # API, so choose them per candidate to preserve fallbacks.
+                if provider_name == "gemini":
+                    candidate_options = {"max_output_tokens": 4096}
+                elif provider_name == "anthropic":
+                    candidate_options = {"max_tokens": 4096}
+                elif provider_name == "openai":
+                    candidate_options = {"max_completion_tokens": 4096}
+                elif provider_name == "openrouter":
+                    candidate_options = {"max_tokens": 8192}
+                    if "nemotron" in model.lower():
+                        candidate_options["reasoning"] = {"effort": "low"}
+                elif provider_name in {"nvidia", "groq", "mistral"}:
+                    candidate_options = {"max_tokens": 4096}
             attempts_allowed = 1 + self.transient_retries
             for attempt_number in range(1, attempts_allowed + 1):
                 try:
-                    result = provider.complete(messages, model, options)
+                    result = provider.complete(messages, model, candidate_options)
                     trace.append(RouteAttempt(provider_name, model, attempt_number, "success"))
                     self.last_trace = tuple(trace)
                     return result
@@ -106,6 +125,11 @@ class ModelRouter:
                             message=str(exc),
                         )
                     )
+                    if isinstance(exc, AuthenticationError):
+                        # A missing or rejected key disables only this candidate.
+                        # Keep walking the route, including when this is the last one,
+                        # so its error cannot hide an earlier provider failure.
+                        break
                     if exc.fatal:
                         self.last_trace = tuple(trace)
                         raise RoutingError(str(exc), tuple(item.as_dict() for item in trace)) from exc
@@ -124,10 +148,15 @@ class ModelRouter:
                     break
 
         self.last_trace = tuple(trace)
-        raise RoutingError(
-            "Aucun candidat configuré n'a fourni de réponse.",
-            tuple(item.as_dict() for item in trace),
-        )
+        failures = [
+            f"{item.provider}:{item.model} — {item.message or item.outcome}"
+            for item in trace
+            if item.outcome != "success"
+        ]
+        summary = "Aucun candidat configuré n'a fourni de réponse."
+        if failures:
+            summary += " Détail des essais : " + " ; ".join(failures)
+        raise RoutingError(summary, tuple(item.as_dict() for item in trace))
 
 
 def build_router(config: VybelixConfig) -> ModelRouter:
@@ -140,6 +169,7 @@ def build_router(config: VybelixConfig) -> ModelRouter:
             timeout_seconds=config.runtime.request_timeout_seconds,
         )
     compatible_adapters = {
+        "openai": OpenAIAdapter,
         "nvidia": NvidiaAdapter,
         "groq": GroqAdapter,
         "openrouter": OpenRouterAdapter,
@@ -151,6 +181,12 @@ def build_router(config: VybelixConfig) -> ModelRouter:
             providers[provider_name] = adapter_type(
                 settings, timeout_seconds=config.runtime.request_timeout_seconds,
             )
+    anthropic_settings = config.providers.get("anthropic")
+    if anthropic_settings is not None:
+        providers["anthropic"] = AnthropicAdapter(
+            anthropic_settings,
+            timeout_seconds=config.runtime.request_timeout_seconds,
+        )
     return ModelRouter(
         providers,
         config.models,

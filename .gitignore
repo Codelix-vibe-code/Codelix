@@ -17,3 +17,4 @@ vybelix.toml
 build/
 dist/
 *.egg-info/
+/CAHIER_DES_CHARGES_CODELIX_V1.md

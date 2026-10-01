@@ -11,16 +11,19 @@ from .errors import (
     RoutingError,
     TransientProviderError,
 )
+from .anthropic import AnthropicAdapter
 from .gemini import GeminiAdapter
 from .groq import GroqAdapter
 from .nvidia import NvidiaAdapter
 from .mistral import MistralAdapter
 from .openrouter import OpenRouterAdapter
 from .openai_compatible import OpenAICompatibleAdapter
+from .openai import OpenAIAdapter
 from .router import ModelRouter, RouteAttempt, build_router
 
 __all__ = [
     "AccessDeniedError",
+    "AnthropicAdapter",
     "AuthenticationError",
     "GeminiAdapter",
     "GroqAdapter",
@@ -29,6 +32,7 @@ __all__ = [
     "ModelRouter",
     "MistralAdapter",
     "OpenAICompatibleAdapter",
+    "OpenAIAdapter",
     "NetworkError",
     "NvidiaAdapter",
     "OpenRouterAdapter",

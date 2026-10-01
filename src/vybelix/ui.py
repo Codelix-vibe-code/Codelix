@@ -266,6 +266,9 @@ def project_snapshot(project: Path, actions: UIActions | None = None) -> dict[st
         "allowed_commands": config.get("verifier", {}).get("allowed_commands", []),
         "runtime": config.get("runtime", {}),
         "routes": routes,
+        "configured_providers": sorted(config.get("providers", {})),
+        "user_level": config.get("user", {}).get("level", "beginner"),
+        "user_level_selected": config.get("user", {}).get("level_selected", False),
         "providers": sorted({route["provider"] for route in routes}),
         "operations": operations,
         "history": history,
@@ -312,6 +315,27 @@ def make_handler(project: Path, static_root: Path):
 
         def do_GET(self):
             path = urlsplit(self.path).path
+            if path == "/api/context":
+                try:
+                    self._json(200, self.actions.project_context())
+                except Exception as exc:
+                    self._json(400, {"error": _safe_ui_error(exc)})
+                return
+            if path == "/api/skills":
+                try:
+                    self._json(200, self.actions.skills_catalog())
+                except Exception as exc:
+                    self._json(400, {"error": _safe_ui_error(exc)})
+                return
+            if path == "/api/keys":
+                authorization = self.headers.get("Authorization", "")
+                scheme, _, token = authorization.partition(" ")
+                try:
+                    value = self.actions.api_key_status(token) if scheme.casefold() == "bearer" and token else self.actions.api_key_access_state()
+                    self._json(200, value)
+                except Exception as exc:
+                    self._json(401, {"error": _safe_ui_error(exc)})
+                return
             if path == "/api/state":
                 try:
                     payload = json.dumps(project_snapshot(project, self.actions), ensure_ascii=False).encode("utf-8")
@@ -379,7 +403,55 @@ def make_handler(project: Path, static_root: Path):
                 self.end_headers()
                 return
             try:
-                if path == "/api/plan":
+                if path == "/api/skills/create":
+                    self._json(201, self.actions.create_skill_draft(payload))
+                elif path == "/api/skills/validate":
+                    self._json(200, self.actions.validate_skill(payload.get("source")))
+                elif path == "/api/skills/install":
+                    self._json(200, self.actions.install_skill(payload.get("source"), payload.get("approved")))
+                elif path == "/api/skills/update":
+                    self._json(200, self.actions.update_skill(payload.get("source"), payload.get("approved")))
+                elif path == "/api/skills/test":
+                    self._json(200, self.actions.test_skill(payload.get("id")))
+                elif path == "/api/skills/dependencies":
+                    self._json(200, self.actions.skill_dependencies(payload.get("id")))
+                elif path == "/api/skills/configure":
+                    self._json(200, self.actions.configure_skill(payload.get("id"), payload.get("values")))
+                elif path == "/api/skills/configuration":
+                    self._json(200, self.actions.skill_configuration_status(payload.get("id")))
+                elif path == "/api/skills/schema":
+                    self._json(200, self.actions.skill_configuration_schema(payload.get("id")))
+                elif path == "/api/skills/context":
+                    self._json(200, self.actions.skill_agent_context(payload.get("ids"), payload.get("role")))
+                elif path == "/api/skills/enable":
+                    self._json(200, self.actions.set_skill_enabled(payload.get("id"), True, payload.get("permissions")))
+                elif path == "/api/skills/disable":
+                    self._json(200, self.actions.set_skill_enabled(payload.get("id"), False))
+                elif path == "/api/skills/uninstall":
+                    self._json(200, self.actions.uninstall_skill(payload.get("id"), payload.get("approved")))
+                elif path == "/api/keys/pin":
+                    self._json(200, self.actions.unlock_api_keys(payload.get("action"), payload.get("pin"), payload.get("confirmation")))
+                elif path == "/api/keys":
+                    authorization = self.headers.get("Authorization", "")
+                    scheme, _, token = authorization.partition(" ")
+                    token = token if scheme.casefold() == "bearer" else None
+                    self._json(200, self.actions.set_api_key(payload.get("name"), payload.get("key"), token))
+                elif path == "/api/keys/test":
+                    authorization = self.headers.get("Authorization", "")
+                    scheme, _, token = authorization.partition(" ")
+                    token = token if scheme.casefold() == "bearer" else None
+                    self._json(200, self.actions.test_api_call(payload.get("provider"), payload.get("model"), payload.get("key"), token))
+                elif path == "/api/models/remove":
+                    self._json(200, self.actions.remove_model_route(payload.get("role"), payload.get("model")))
+                elif path == "/api/models":
+                    self._json(200, self.actions.update_model_routes(payload.get("routes")))
+                elif path == "/api/user-level":
+                    self._json(200, self.actions.update_user_level(payload.get("level")))
+                elif path == "/api/context":
+                    self._json(200, self.actions.save_project_context(payload))
+                elif path == "/api/resume":
+                    self._json(200, self.actions.resume_task(payload.get("task_id"), payload.get("approved")))
+                elif path == "/api/plan":
                     operation_id = self.actions.submit("plan", payload)
                     self._json(202, {"operation_id": operation_id})
                 elif path == "/api/code":

@@ -3,9 +3,13 @@ from __future__ import annotations
 
 import difflib
 import hashlib
+import hmac
 import json
 import os
+import re
+import secrets
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -20,10 +24,27 @@ from .providers.router import build_router
 from .verifier import Verifier
 from .workflow import VybelixWorkflow
 from .paths import project_cache_root, project_config_path
+from .skills import SkillError, SkillManager
+from .project_context import ProjectContextStore
 
 
 class UIActionError(RuntimeError):
     """A user-requested UI operation could not safely be completed."""
+
+
+def _semantic_version(value: Any) -> tuple[int,int,int]:
+    match=re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:[-+].*)?",value) if isinstance(value,str) else None
+    return tuple(int(match.group(i)) for i in range(1,4)) if match else (0,0,0)
+
+
+def _sandbox_status() -> dict[str,Any]:
+    import shutil
+    runtime=shutil.which("WindowsSandbox.exe") or shutil.which("wsl.exe") or shutil.which("docker.exe") or shutil.which("podman.exe")
+    if runtime:
+        return {"available":False,"status":"runtime_detected_backend_unavailable","runtime":Path(runtime).name,
+                "detail":"Le runtime est détecté, mais aucun backend isolé validé n’est configuré."}
+    return {"available":False,"status":"runtime_missing","runtime":None,
+            "detail":"Windows Sandbox, WSL et conteneur isolé indisponibles; exécution des skills désactivée."}
 
 
 class UIActions:
@@ -32,6 +53,9 @@ class UIActions:
         self._operations: dict[str, dict[str, Any]] = {}
         self._operations_lock = threading.Lock()
         self._project_lock = threading.RLock()
+        self._api_key_sessions: dict[str, float] = {}
+        self._pin_failures = 0
+        self._pin_locked_until = 0.0
 
     def submit(self, kind: str, payload: dict[str, Any]) -> str:
         operations: dict[str, Callable[[], dict[str, Any]]] = {
@@ -85,6 +109,328 @@ class UIActions:
                 result.append(entry)
             return result
 
+    def project_context(self) -> dict[str, Any]:
+        progress = ProgressStore(self.root / "docs" / "progress" / "tasks.json").load()
+        return ProjectContextStore(self._cache_path("context.json"), progress["project_id"]).load()
+
+    def save_project_context(self, value: Any) -> dict[str, Any]:
+        with self._project_lock:
+            progress = ProgressStore(self.root / "docs" / "progress" / "tasks.json").load()
+            saved = ProjectContextStore(self._cache_path("context.json"), progress["project_id"]).save(value)
+            return {"saved": True, "updated_at": saved["updated_at"]}
+
+    def resume_task(self, task_id: Any, approved: Any) -> dict[str, Any]:
+        if approved is not True:
+            raise UIActionError("La reprise nécessite une confirmation explicite.")
+        if not isinstance(task_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", task_id):
+            raise UIActionError("Identifiant de tâche invalide.")
+        with self._project_lock:
+            store = ProgressStore(self.root / "docs" / "progress" / "tasks.json")
+            progress = store.load()
+            task = next((item for item in progress["tasks"] if item["id"] == task_id), None)
+            if task is None:
+                raise UIActionError("Tâche inconnue.")
+            if task["status"] not in {"blocked", "interrupted"}:
+                raise UIActionError("Seules les tâches bloquées ou interrompues peuvent être reprises.")
+            states = {item["id"]: item["status"] for item in progress["tasks"]}
+            waiting = [dependency for dependency in task["dependencies"] if states.get(dependency) != "done"]
+            if waiting:
+                raise UIActionError("Dépendances non terminées : " + ", ".join(waiting) + ".")
+            previous = task["status"]
+            task["status"] = "todo"
+            task["last_result"] = f"Tâche reprise explicitement depuis {previous}; aucun agent n’a été lancé."
+            progress["updated_at"] = _now()
+            store.save(progress)
+            self._record_event("task_resumed", task_id=task_id, previous_status=previous)
+            return {"resumed": True, "task_id": task_id, "status": "todo"}
+
+    def api_key_access_state(self) -> dict[str, bool]:
+        """Expose only whether a local PIN has been initialized."""
+        pin_file = self._api_key_pin_file()
+        return {"setup_required": not pin_file.exists(), "locked": pin_file.exists()}
+
+    def unlock_api_keys(self, action: Any, pin: Any, confirmation: Any = None) -> dict[str, str]:
+        """Create the first six-digit PIN or verify it and issue a short-lived in-memory token."""
+        if action not in {"setup", "unlock"} or not isinstance(pin, str) or not re.fullmatch(r"\d{6}", pin):
+            raise UIActionError("Le code PIN doit contenir exactement 6 chiffres.")
+        with self._project_lock:
+            pin_file = self._api_key_pin_file()
+            if action == "setup":
+                if pin_file.exists():
+                    raise UIActionError("Un code PIN est déjà configuré.")
+                if confirmation != pin:
+                    raise UIActionError("Les deux codes PIN ne correspondent pas.")
+                salt = secrets.token_bytes(16)
+                pin_hash = hashlib.pbkdf2_hmac("sha256", pin.encode("ascii"), salt, 600_000)
+                _write_json(pin_file, {"schema_version": 1, "salt": salt.hex(), "hash": pin_hash.hex()})
+                self._pin_failures = 0
+            else:
+                now = time.monotonic()
+                if now < self._pin_locked_until:
+                    raise UIActionError("Trop de tentatives. Réessaie dans quelques instants.")
+                record = self._read_api_key_pin(pin_file)
+                try:
+                    salt = bytes.fromhex(record["salt"])
+                    expected = bytes.fromhex(record["hash"])
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise UIActionError("Le code PIN local est illisible; les clés restent verrouillées.") from exc
+                actual = hashlib.pbkdf2_hmac("sha256", pin.encode("ascii"), salt, 600_000)
+                if not hmac.compare_digest(actual, expected):
+                    self._pin_failures += 1
+                    if self._pin_failures >= 5:
+                        self._pin_locked_until = now + 60
+                        self._pin_failures = 0
+                    raise UIActionError("Code PIN incorrect.")
+                self._pin_failures = 0
+            token = secrets.token_urlsafe(32)
+            self._api_key_sessions[token] = time.monotonic()
+            return {"session_token": token}
+
+    def api_key_status(self, session_token: Any) -> dict[str, Any]:
+        """Return API key names and presence only; values never leave the process."""
+        with self._project_lock:
+            self._require_api_key_session(session_token)
+            config = load_config(project_config_path(self.root))
+            provider_envs: dict[str, list[str]] = {}
+            for provider_id, settings in config.providers.items():
+                if settings.api_key_env:
+                    provider_envs.setdefault(settings.api_key_env, []).append(provider_id)
+            env_values = _local_api_key_entries(self.root / ".env")
+            names = set(provider_envs) | set(env_values)
+            return {"keys": [
+                {
+                    "name": name,
+                    "configured": bool(env_values.get(name) or os.environ.get(name)),
+                    "used_by": sorted(provider_envs.get(name, [])),
+                }
+                for name in sorted(names, key=str.casefold)
+            ]}
+
+    def set_api_key(self, env_name: Any, value: Any, session_token: Any) -> dict[str, Any]:
+        """Save or remove one API key by its environment variable name."""
+        if not isinstance(env_name, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,63}", env_name):
+            raise UIActionError("Nom de clé invalide.")
+        if not isinstance(value, str) or len(value) > 4096:
+            raise UIActionError("La clé API doit contenir au maximum 4096 caractères.")
+        value = value.strip()
+        if value and not re.fullmatch(r"[A-Za-z0-9._~+/-]+=*", value):
+            raise UIActionError("Format de clé invalide : seuls les caractères usuels d’une clé API sont acceptés.")
+        with self._project_lock:
+            self._require_api_key_session(session_token)
+            config = load_config(project_config_path(self.root))
+            configured_names = {settings.api_key_env for settings in config.providers.values() if settings.api_key_env}
+            if not env_name.upper().endswith("_API_KEY") and env_name not in configured_names:
+                raise UIActionError("Le nom doit finir par _API_KEY ou être utilisé dans vybelix.toml.")
+            _set_local_env_value(self.root / ".env", env_name, value)
+            if value:
+                os.environ[env_name] = value
+            else:
+                os.environ.pop(env_name, None)
+            return {"name": env_name, "configured": bool(value)}
+
+    def test_api_call(self, provider_id: Any, model: Any, api_key: Any, session_token: Any) -> dict[str, Any]:
+        """Send one small provider request using an unsaved key; never persist it."""
+        if not isinstance(provider_id, str) or provider_id not in {
+            "openai", "anthropic", "gemini", "nvidia", "groq", "openrouter", "mistral",
+        }:
+            raise UIActionError("Fournisseur non pris en charge pour le test.")
+        if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/:-]{0,159}", model.strip()):
+            raise UIActionError("Identifiant de modèle invalide.")
+        if not isinstance(api_key, str) or not api_key.strip() or len(api_key) > 4096:
+            raise UIActionError("Renseigne une clé API valide avant le test.")
+        api_key = api_key.strip()
+        if not re.fullmatch(r"[A-Za-z0-9._~+/-]+=*", api_key):
+            raise UIActionError("Format de clé API invalide.")
+
+        with self._project_lock:
+            self._require_api_key_session(session_token)
+            config = load_config(project_config_path(self.root))
+            settings = config.providers.get(provider_id)
+            if settings is None or not settings.base_url:
+                raise UIActionError("Ce fournisseur n’est pas configuré dans vybelix.toml.")
+
+        try:
+            from .providers.anthropic import AnthropicAdapter
+            from .providers.gemini import GeminiAdapter
+            from .providers.groq import GroqAdapter
+            from .providers.mistral import MistralAdapter
+            from .providers.nvidia import NvidiaAdapter
+            from .providers.openai import OpenAIAdapter
+            from .providers.openrouter import OpenRouterAdapter
+
+            adapters = {
+                "openai": OpenAIAdapter, "anthropic": AnthropicAdapter, "gemini": GeminiAdapter,
+                "nvidia": NvidiaAdapter, "groq": GroqAdapter, "mistral": MistralAdapter,
+                "openrouter": OpenRouterAdapter,
+            }
+            test_timeout = min(120 if provider_id == "nvidia" else 30, config.runtime.request_timeout_seconds)
+            adapter = adapters[provider_id](settings, api_key=api_key, timeout_seconds=test_timeout)
+            if provider_id == "gemini":
+                options = {"max_output_tokens": 256, "temperature": 0.1}
+            elif provider_id == "anthropic":
+                options = {"max_tokens": 256}
+            else:
+                options = {"max_tokens": 256, "temperature": 0.1, "stream": True}
+            started = time.monotonic()
+            adapter.complete([{"role": "user", "content": "ping"}], model.strip(), options)
+            latency_ms = round((time.monotonic() - started) * 1000)
+        except Exception as exc:
+            # Never return arbitrary provider response text or the submitted credential.
+            from .providers.errors import ProviderError
+            if isinstance(exc, ProviderError):
+                raise UIActionError(_safe_error(exc)) from exc
+            if isinstance(exc, UIActionError):
+                raise
+            raise UIActionError("L’appel de test a échoué. Vérifie le fournisseur, le modèle et la clé API.") from exc
+        finally:
+            api_key = ""
+        return {"ok": True, "provider": provider_id, "model": model.strip(), "latencyMs": latency_ms}
+
+    def update_user_level(self, level: Any) -> dict[str, str]:
+        """Persist the selected communication level and mark first-run setup complete."""
+        if not isinstance(level, str) or level not in {"beginner", "intermediate", "pro"}:
+            raise UIActionError("Choisis beginner, intermediate ou pro.")
+        with self._project_lock:
+            path = project_config_path(self.root)
+            if path.is_symlink():
+                raise UIActionError("Le fichier de configuration ne peut pas être un lien symbolique.")
+            load_config(path)
+            try:
+                original = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                raise UIActionError("Impossible de lire le fichier de configuration.") from exc
+            newline = "\r\n" if "\r\n" in original else "\n"
+            user_match = re.search(r"(?m)^\[user\][ \t]*$", original)
+            temporary = None
+            if user_match:
+                next_section = re.search(r"(?m)^\[[^\r\n]+\][ \t]*$", original[user_match.end():])
+                end = user_match.end() + next_section.start() if next_section else len(original)
+                block = original[user_match.end():end]
+                for key, value in (("level", json.dumps(level)), ("level_selected", "true")):
+                    setting = re.search(rf"(?m)^[ \t]*{key}[ \t]*=.*$", block)
+                    if setting:
+                        block = block[:setting.start()] + f"{key} = {value}" + block[setting.end():]
+                    else:
+                        if block and not block.endswith(("\n", "\r")):
+                            block += newline
+                        block += f"{key} = {value}" + newline
+                updated = original[:user_match.end()] + block + original[end:]
+            else:
+                updated = original.rstrip() + newline + newline + "[user]" + newline
+                updated += f"level = {json.dumps(level)}" + newline + "level_selected = true" + newline
+            try:
+                from .config import validate_config
+                validate_config(__import__("tomllib").loads(updated))
+                temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+                with temporary.open("x", encoding="utf-8", newline="") as stream:
+                    stream.write(updated)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, path)
+            except (OSError, ValueError) as exc:
+                raise UIActionError("Impossible d’enregistrer le niveau utilisateur.") from exc
+            finally:
+                if temporary is not None:
+                    temporary.unlink(missing_ok=True)
+            return {"level": level}
+
+    def remove_model_route(self, role: Any, candidate: Any) -> dict[str, Any]:
+        """Remove one exact candidate from the current persisted route without stale UI state."""
+        roles = ("planner", "coder", "tester")
+        if role not in roles or not isinstance(candidate, str):
+            raise UIActionError("Agent ou modèle invalide pour le retrait.")
+        with self._project_lock:
+            config = load_config(project_config_path(self.root))
+            routes = {name: list(config.models.get(name, ())) for name in roles}
+            if candidate not in routes[role]:
+                raise UIActionError("Ce modèle ne figure plus dans la route de cet agent.")
+            routes[role].remove(candidate)
+            saved = self.update_model_routes(routes)
+            return {"removed": candidate, "role": role, "routes": saved["routes"]}
+
+    def update_model_routes(self, routes: Any) -> dict[str, Any]:
+        """Persist user-selected provider/model candidates without touching secrets."""
+        roles = ("planner", "coder", "tester")
+        supported = {"openai", "anthropic", "gemini", "nvidia", "groq", "openrouter", "mistral"}
+        if not isinstance(routes, dict) or set(routes) != set(roles):
+            raise UIActionError("Les routes doivent contenir Planner, Coder et Tester.")
+        with self._project_lock:
+            path = project_config_path(self.root)
+            if path.is_symlink():
+                raise UIActionError("Le fichier de configuration ne peut pas être un lien symbolique.")
+            config = load_config(path)
+            normalized: dict[str, list[str]] = {}
+            for role in roles:
+                candidates = routes[role]
+                if not isinstance(candidates, list) or len(candidates) > 5:
+                    raise UIActionError(f"La route {role} doit contenir au maximum cinq modèles.")
+                values: list[str] = []
+                for candidate in candidates:
+                    if not isinstance(candidate, str) or ":" not in candidate:
+                        raise UIActionError("Chaque modèle doit respecter le format fournisseur:identifiant.")
+                    provider, model = candidate.split(":", 1)
+                    if provider not in supported or provider not in config.providers:
+                        raise UIActionError(f"Le fournisseur {provider} n’est pas configuré dans ce projet.")
+                    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/:-]{0,159}", model):
+                        raise UIActionError("Identifiant de modèle invalide.")
+                    if candidate in values:
+                        raise UIActionError(f"Le modèle {candidate} apparaît plusieurs fois dans {role}.")
+                    values.append(candidate)
+                normalized[role] = values
+
+            try:
+                original = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeError) as exc:
+                raise UIActionError("Impossible de lire le fichier de configuration.") from exc
+            section = "[models]\n" + "".join(
+                f"{role} = {json.dumps(normalized[role], ensure_ascii=False)}\n" for role in roles
+            )
+            pattern = re.compile(r"(?ms)^\[models\][ \t]*\r?\n.*?(?=^\[[^\r\n]+\][ \t]*$|\Z)")
+            updated, count = pattern.subn(section + "\n", original, count=1)
+            if not count:
+                updated = original.rstrip() + "\n\n" + section
+            temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+            try:
+                with temporary.open("x", encoding="utf-8", newline="\n") as stream:
+                    stream.write(updated)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, path)
+            except OSError as exc:
+                raise UIActionError("Impossible d’enregistrer les routes de modèles.") from exc
+            finally:
+                temporary.unlink(missing_ok=True)
+            return {"routes": normalized}
+
+    def _api_key_pin_file(self) -> Path:
+        cache_root = project_cache_root(self.root)
+        if cache_root.is_symlink():
+            raise UIActionError("Le dossier local de sécurité contient un lien interdit.")
+        cache_root.mkdir(parents=True, exist_ok=True)
+        pin_file = cache_root / "api-key-access.json"
+        if pin_file.is_symlink():
+            raise UIActionError("Le fichier local de sécurité contient un lien interdit.")
+        return pin_file
+
+    @staticmethod
+    def _read_api_key_pin(pin_file: Path) -> dict[str, Any]:
+        try:
+            value = json.loads(pin_file.read_text(encoding="utf-8"))
+            if value.get("schema_version") != 1 or not isinstance(value.get("salt"), str) or not isinstance(value.get("hash"), str):
+                raise ValueError
+            return value
+        except (OSError, json.JSONDecodeError, AttributeError, ValueError) as exc:
+            raise UIActionError("Le code PIN local est illisible; les clés restent verrouillées.") from exc
+
+    def _require_api_key_session(self, token: Any) -> None:
+        now = time.monotonic()
+        for old_token, last_seen in tuple(self._api_key_sessions.items()):
+            if now - last_seen > 900:
+                self._api_key_sessions.pop(old_token, None)
+        if not isinstance(token, str) or token not in self._api_key_sessions:
+            raise UIActionError("La section API Keys est verrouillée; saisis ton code PIN.")
+        self._api_key_sessions[token] = now
+
     def _plan(self, payload: dict[str, Any]) -> dict[str, Any]:
         request = payload.get("request")
         if not isinstance(request, str) or not request.strip() or len(request.encode("utf-8")) > 20_000:
@@ -126,12 +472,59 @@ class UIActions:
 
     def reject_plan(self) -> dict[str, Any]:
         with self._project_lock:
+            store = ProgressStore(self.root / "docs" / "progress" / "tasks.json")
+            progress = store.load()
             path = self._cache_path("plan.json")
             if path.is_symlink():
                 raise UIActionError("Le cache de plan contient un lien interdit.")
+            try:
+                plan = validate_planner_output(
+                    json.loads(path.read_text(encoding="utf-8")),
+                    expected_project_id=progress["project_id"],
+                )
+            except (OSError, json.JSONDecodeError, ValueError) as exc:
+                raise UIActionError("Aucun plan valide à refuser ou désapprouver.") from exc
+
+            task_ids = {task["id"] for task in plan["tasks"]}
+            progress_tasks = {task["id"]: task for task in progress["tasks"]}
+            recorded_ids = task_ids & progress_tasks.keys()
+            approval_reverted = bool(task_ids) and recorded_ids == task_ids
+            if recorded_ids and not approval_reverted:
+                raise UIActionError("Le plan n’est présent que partiellement dans la progression; aucune tâche n’a été retirée.")
+            if approval_reverted:
+                for task_id in task_ids:
+                    task = progress_tasks[task_id]
+                    untouched = (
+                        task["status"] == "todo"
+                        and task["attempts"] == 0
+                        and not task["files_modified"]
+                        and not task["verifications"]
+                    )
+                    if not untouched:
+                        raise UIActionError(
+                            f"Impossible de désapprouver : la tâche {task_id} a déjà commencé ou possède des résultats."
+                        )
+                dependents = [
+                    task["id"] for task in progress["tasks"]
+                    if task["id"] not in task_ids and task_ids.intersection(task["dependencies"])
+                ]
+                if dependents:
+                    raise UIActionError(
+                        "Impossible de désapprouver : d’autres tâches dépendent déjà de ce plan."
+                    )
+                progress["tasks"] = [task for task in progress["tasks"] if task["id"] not in task_ids]
+                progress["updated_at"] = _now()
+                store.save(progress)
+
             path.unlink(missing_ok=True)
-            self._record_event("plan_rejected")
-            return {"rejected": True}
+            self._record_event(
+                "plan_rejected", task_ids=sorted(task_ids), approval_reverted=approval_reverted
+            )
+            return {
+                "rejected": True,
+                "approval_reverted": approval_reverted,
+                "removed_task_ids": sorted(task_ids) if approval_reverted else [],
+            }
 
     def _code(self, payload: dict[str, Any]) -> dict[str, Any]:
         task_id = _task_id(payload)
@@ -278,6 +671,123 @@ class UIActions:
             return []
         return [item for item in events[-200:] if isinstance(item, dict)] if isinstance(events, list) else []
 
+    def skills_catalog(self) -> dict[str, Any]:
+        """Expose the local registry and validated project skills; never executes them."""
+        manager = SkillManager(self.root)
+        installed = manager.list_installed()
+        installed_by_id = {item["id"]: item for item in installed}
+        candidates = []
+        root = self.root / "skills"
+        if root.is_symlink():
+            raise UIActionError("Le dossier skills du projet ne peut pas être un lien.")
+        if root.is_dir():
+            for path in sorted(root.iterdir(), key=lambda item: item.name.casefold()):
+                if not path.is_dir() or path.is_symlink():
+                    continue
+                validation = manager.validate(path)
+                skill = validation.skill
+                skill_id = skill.get("id") if skill else None
+                existing = installed_by_id.get(skill_id)
+                if existing and skill and existing["version"] == skill.get("version"):
+                    continue
+                update_available=bool(existing and skill and _semantic_version(skill.get("version")) > _semantic_version(existing["version"]))
+                if existing and not update_available:
+                    continue
+                candidates.append({
+                    "source": path.relative_to(self.root).as_posix(),
+                    "update_available": update_available,
+                    "valid": validation.valid,
+                    "skill": validation.skill,
+                    "errors": list(validation.errors),
+                    "warnings": list(validation.warnings),
+                })
+        return {"installed": installed, "candidates": candidates, "execution_enabled": False,
+                "sandbox": _sandbox_status(),
+                "agent_context_enabled": True}
+
+    def validate_skill(self, source: Any) -> dict[str, Any]:
+        path = self._skill_source(source)
+        return SkillManager(self.root).validate(path).as_dict()
+
+    def create_skill_draft(self, payload: Any) -> dict[str, str]:
+        if not isinstance(payload, dict):
+            raise UIActionError("Informations du brouillon invalides.")
+        path = SkillManager(self.root).create_draft(
+            payload.get("id"), name=payload.get("name", ""),
+            description=payload.get("description", ""), author=payload.get("author", "Unknown"),
+            license_name=payload.get("license", "Unknown"),
+        )
+        return {"source": path.relative_to(self.root).as_posix()}
+
+    def install_skill(self, source: Any, approved: Any) -> dict[str, Any]:
+        if approved is not True:
+            raise UIActionError("L’installation requiert une confirmation explicite dans l’interface.")
+        path = self._skill_source(source)
+        return SkillManager(self.root).install_local(path, approved=True)
+
+    def update_skill(self, source: Any, approved: Any) -> dict[str, Any]:
+        if approved is not True: raise UIActionError("La mise à jour requiert une confirmation explicite.")
+        path=self._skill_source(source)
+        return SkillManager(self.root).update_local(path,approved=True)
+
+    def test_skill(self, skill_id: Any) -> dict[str, Any]:
+        if not isinstance(skill_id,str): raise UIActionError("Identifiant de skill invalide.")
+        return SkillManager(self.root).test(skill_id)
+
+    def skill_dependencies(self, skill_id: Any) -> dict[str, Any]:
+        if not isinstance(skill_id,str): raise UIActionError("Identifiant de skill invalide.")
+        return {"skill_id":skill_id,"dependencies":SkillManager(self.root).dependency_status(skill_id)}
+
+    def configure_skill(self, skill_id: Any, values: Any) -> dict[str, Any]:
+        if not isinstance(skill_id,str) or not isinstance(values,dict): raise UIActionError("Configuration de skill invalide.")
+        return SkillManager(self.root).configure(skill_id,values)
+
+    def skill_configuration_status(self, skill_id: Any) -> dict[str, Any]:
+        if not isinstance(skill_id,str): raise UIActionError("Identifiant de skill invalide.")
+        return SkillManager(self.root).configuration_status(skill_id)
+
+    def skill_configuration_schema(self, skill_id: Any) -> dict[str, Any]:
+        if not isinstance(skill_id,str): raise UIActionError("Identifiant de skill invalide.")
+        return SkillManager(self.root).configuration_schema(skill_id)
+
+    def skill_agent_context(self, skill_ids: Any, role: Any) -> dict[str, Any]:
+        if not isinstance(skill_ids,list) or any(not isinstance(item,str) for item in skill_ids) or not isinstance(role,str):
+            raise UIActionError("Sélection de skills invalide.")
+        from .skills.bridge import SkillBridge
+        return {"role":role,"skills":SkillBridge(SkillManager(self.root)).context_for(role,skill_ids)}
+
+    def set_skill_enabled(self, skill_id: Any, enabled: Any, permissions: Any = None) -> dict[str, Any]:
+        if not isinstance(skill_id, str) or enabled not in {True, False}:
+            raise UIActionError("Action Skill invalide.")
+        manager = SkillManager(self.root)
+        if enabled:
+            if not isinstance(permissions, list) or any(not isinstance(item, str) for item in permissions):
+                raise UIActionError("Confirme explicitement les permissions demandées.")
+            return manager.enable(skill_id, approved_permissions=set(permissions))
+        return manager.disable(skill_id)
+
+    def uninstall_skill(self, skill_id: Any, approved: Any) -> dict[str, bool]:
+        if approved is not True or not isinstance(skill_id, str):
+            raise UIActionError("La désinstallation requiert une confirmation explicite.")
+        SkillManager(self.root).uninstall(skill_id, approved=True)
+        return {"removed": True}
+
+    def _skill_source(self, source: Any) -> Path:
+        try:
+            relative = validate_relative_path(source)
+        except ValueError as exc:
+            raise UIActionError("Chemin de skill invalide.") from exc
+        if not relative.startswith("skills/"):
+            raise UIActionError("Seuls les skills présents dans le dossier projet skills/ sont disponibles.")
+        path = self.root / relative
+        try:
+            path.resolve(strict=True).relative_to((self.root / "skills").resolve(strict=True))
+        except (OSError, ValueError) as exc:
+            raise UIActionError("Le skill doit rester dans skills/ et exister localement.") from exc
+        if path.is_symlink() or not path.is_dir():
+            raise UIActionError("Le dossier de skill est invalide ou est un lien.")
+        return path
+
     def _record_event(self, kind: str, **details: Any) -> None:
         path = self._cache_path("events.json")
         if path.is_symlink():
@@ -362,6 +872,72 @@ def _write_json(path: Path, value: Any) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _local_api_key_entries(path: Path) -> dict[str, str]:
+    """Read names and values of API_KEY variables internally; callers expose names only."""
+    if path.is_symlink():
+        raise UIActionError("Le fichier .env ne peut pas être un lien symbolique.")
+    try:
+        content = path.read_text(encoding="utf-8") if path.exists() else ""
+    except (OSError, UnicodeError) as exc:
+        raise UIActionError("Impossible de lire le fichier .env local.") from exc
+    if len(content.encode("utf-8")) > 1_048_576:
+        raise UIActionError("Le fichier .env dépasse la taille autorisée.")
+    entries: dict[str, str] = {}
+    assignment = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$")
+    for line in content.splitlines():
+        match = assignment.match(line)
+        if not match or not match.group(1).upper().endswith("_API_KEY"):
+            continue
+        value = match.group(2).strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        elif " #" in value:
+            value = value.split(" #", 1)[0].rstrip()
+        entries[match.group(1)] = value
+    return entries
+
+
+def _set_local_env_value(path: Path, name: str, value: str) -> None:
+    """Atomically update one variable in the ignored local .env without exposing it."""
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+        raise UIActionError("Nom de variable d’environnement invalide.")
+    if path.is_symlink():
+        raise UIActionError("Le fichier .env ne peut pas être un lien symbolique.")
+    try:
+        content = path.read_text(encoding="utf-8") if path.exists() else ""
+    except (OSError, UnicodeError) as exc:
+        raise UIActionError("Impossible de lire le fichier .env local.") from exc
+    if len(content.encode("utf-8")) > 1_048_576:
+        raise UIActionError("Le fichier .env dépasse la taille autorisée.")
+
+    pattern = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=")
+    lines = content.splitlines()
+    updated: list[str] = []
+    inserted = False
+    for line in lines:
+        match = pattern.match(line)
+        if match and match.group(1) == name:
+            if value and not inserted:
+                updated.append(f"{name}={value}")
+                inserted = True
+            continue
+        updated.append(line)
+    if value and not inserted:
+        updated.append(f"{name}={value}")
+    serialized = "\n".join(updated) + ("\n" if updated else "")
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8", newline="\n") as stream:
+            stream.write(serialized)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    except OSError as exc:
+        raise UIActionError("Impossible d’enregistrer la clé dans le fichier .env local.") from exc
     finally:
         temporary.unlink(missing_ok=True)
 

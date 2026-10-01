@@ -36,7 +36,8 @@ class VerifierTests(unittest.TestCase):
         command = 'python -c "import os; print(os.getenv(\'CODELIX_SECRET_TEST\'))"'
         with patch.dict(os.environ, {"CODELIX_SECRET_TEST": "private-value-9876"}):
             result = Verifier(self.root, [command]).run(command)
-        self.assertEqual(result.summary, "[SECRET REDACTED]")
+        self.assertNotIn("private-value-9876", result.summary)
+        self.assertNotIn("private-value-9876", "\n".join(result.errors))
 
     def test_rejects_nonexistent_executable_clearly(self):
         command = "program-that-does-not-exist-codelix"

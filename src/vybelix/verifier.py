@@ -11,6 +11,19 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+_SAFE_VERIFIER_ENV = frozenset({
+    "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "SYSTEMDRIVE", "COMSPEC",
+    "TEMP", "TMP", "HOME", "USERPROFILE", "APPDATA", "LOCALAPPDATA",
+    "PROGRAMDATA", "PROGRAMFILES", "PROGRAMFILES(X86)", "COMMONPROGRAMFILES",
+    "COMMONPROGRAMFILES(X86)", "VIRTUAL_ENV", "CONDA_PREFIX", "LANG", "LC_ALL", "TZ",
+})
+
+
+def _verifier_environment() -> dict[str, str]:
+    """Pass only common runtime variables; do not expose inherited API credentials."""
+    return {name: value for name, value in os.environ.items() if name.upper() in _SAFE_VERIFIER_ENV}
+
+
 class VerificationError(RuntimeError):
     """Une vérification n'est pas autorisée ou ne peut pas être exécutée."""
 
@@ -87,6 +100,7 @@ class Verifier:
                 errors="replace",
                 timeout=self.timeout_seconds,
                 check=False,
+                env=_verifier_environment(),
             )
         except subprocess.TimeoutExpired as exc:
             elapsed = round(time.monotonic() - started, 3)

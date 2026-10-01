@@ -39,6 +39,9 @@ class WorkflowTests(unittest.TestCase):
         plan = VybelixWorkflow(config(), router, "demo").create_plan("Créer hello.txt")
         self.assertEqual(plan["tasks"][0]["id"], "task-1")
         self.assertEqual(router.calls[0][0], "planner")
+        self.assertIn("affected_paths", router.calls[0][1][0]["content"])
+        self.assertIn("verification_strategy", router.calls[0][1][0]["content"])
+        self.assertIn("chaîne exacte 1.1", router.calls[0][1][0]["content"])
 
     def test_invalid_plan_is_not_accepted(self):
         router = FakeRouter('{"not":"a plan"}')
@@ -60,6 +63,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(result["task_id"], "task-1")
         payload = json.loads(router.calls[0][1][1]["content"])
         self.assertEqual(payload["context_files"], [{"path": "hello.txt", "content": "bonjour"}])
+        self.assertIn("verification_hints", router.calls[0][1][0]["content"])
+        self.assertIn("chaîne exacte 1.1", router.calls[0][1][0]["content"])
 
     def test_coder_cannot_receive_secret_or_outside_context(self):
         router = FakeRouter('{}')

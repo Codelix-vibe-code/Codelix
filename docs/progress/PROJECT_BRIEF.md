@@ -1,4 +1,14 @@
-# Codelix --- Cahier des charges fonctionnel et technique
+# Vybelix — Cahier des charges global et guide de reprise
+
+> Référence fonctionnelle et technique du projet. Cette copie suivie est destinée aux reprises par Codex. Lire ce document avec [`tasks.json`](tasks.json) et le [`PROJECT_STATUS.md`](../../PROJECT_STATUS.md). Le fichier source local `CAHIER_DES_CHARGES_CODELIX_V1.md` est désormais ignoré par Git; ne pas le considérer comme copie de référence pour un clone.
+>
+> **État de reprise au 2026-10-01T14:47:37Z :** identité/package Vybelix et interface locale intégrés. Le contexte compact projet est maintenant validé et éditable depuis la CLI et Paramètres, stocké localement sans envoi automatique aux modèles. La reprise des tâches bloquées/interrompues est disponible après confirmation et dépendances terminées; elle ne lance aucun agent. Phase 2 fournisseurs reste `needs_review` et est laissée ouverte; aucune route ou intégration fournisseur n’a été touchée dans le dernier travail. La suite complète compte 92 tests réussis. Le suivi JSON reste la source de vérité; changements locaux non publiés de plusieurs chantiers à préserver.
+>
+> La section 17 ci-dessous contient la consigne initiale de création du dépôt. Elle est historique et ne remplace pas l'état courant ni les prochaines tâches de `tasks.json`.
+
+---
+
+# Vybelix --- Cahier des charges fonctionnel et technique
 
 **Version : 1.0 --- MVP**\
 **Cible prioritaire : Windows · Langage : Python 3.12.x · Interface
@@ -6,13 +16,13 @@ initiale : CLI**
 
 ## 1. Vision du produit
 
-Codelix est un orchestrateur d'intelligences artificielles destiné à
+Vybelix est un orchestrateur d'intelligences artificielles destiné à
 accompagner le développement logiciel. Il répartit le travail entre
 plusieurs modèles selon leur rôle, conserve un contexte compact par
 projet, suit l'avancement des tâches et contrôle les modifications
 proposées avant de les appliquer.
 
-Codelix ne doit pas être un simple chat multi-modèles. Sa valeur
+Vybelix ne doit pas être un simple chat multi-modèles. Sa valeur
 principale est de transformer une demande en tâches vérifiables, de
 sélectionner un modèle adapté, de produire des changements structurés,
 puis de vérifier réellement le résultat.
@@ -107,11 +117,11 @@ le MVP.
 ### 4.2 Cycle principal
 
 1.  L'utilisateur formule une demande.
-2.  Codelix charge le contexte résumé du projet et inspecte les fichiers
+2.  Vybelix charge le contexte résumé du projet et inspecte les fichiers
     pertinents.
 3.  Le Planner propose un plan structuré avec tâches, dépendances et
     critères d'acceptation.
-4.  Codelix affiche le plan et attend l'approbation de l'utilisateur.
+4.  Vybelix affiche le plan et attend l'approbation de l'utilisateur.
 5.  Le Router sélectionne un modèle pour chaque rôle.
 6.  Le Coder produit une proposition de modifications structurée.
 7.  L'Execution Manager valide la proposition et demande l'approbation
@@ -120,7 +130,7 @@ le MVP.
 9.  Le Verifier exécute les vérifications autorisées.
 10. En cas d'échec, le Coder reçoit les erreurs utiles et propose une
     correction, dans la limite définie.
-11. Codelix met à jour l'avancement et présente un rapport avec les
+11. Vybelix met à jour l'avancement et présente un rapport avec les
     preuves disponibles.
 
 ## 5. Rôles IA et vérification
@@ -317,7 +327,7 @@ identifiant d'exécution ; - critères d'acceptation concernés.
 ### Boucle de correction
 
 1.  Le Verifier détecte un échec.
-2.  Codelix transmet au Coder le message d'erreur pertinent et le
+2.  Vybelix transmet au Coder le message d'erreur pertinent et le
     contexte minimal nécessaire.
 3.  Le Coder retourne une nouvelle proposition structurée.
 4.  L'Execution Manager revalide la proposition et demande l'approbation
@@ -337,7 +347,7 @@ vérifiée.
 ## 10. Contexte et mémoire par projet
 
 Pour réduire les coûts et éviter de réanalyser le dépôt à chaque
-session, Codelix maintient un contexte concis par projet.
+session, Vybelix maintient un contexte concis par projet.
 
 Il peut contenir : - objectif et description du projet ; - langage,
 framework et commandes confirmés ; - architecture connue et points
@@ -396,7 +406,7 @@ raisonnables.
 -   **Commandes de vérification :** après l’audit, proposer les commandes adaptées au projet et expliquer en français simple ce que chacune va faire. Ne lancer que les commandes approuvées explicitement par l’utilisateur. Le Verifier contrôle les arguments et les chemins des fichiers transmis à `py_compile`.
 -   **Délai maximum par appel de modèle :** 300 secondes.
 -   **Taille maximale d'un fichier transmis à un modèle :** environ 200
-    Ko. Au-delà, Codelix doit sélectionner les extraits pertinents ou
+    Ko. Au-delà, Vybelix doit sélectionner les extraits pertinents ou
     demander une stratégie adaptée, sans tronquer silencieusement le
     contenu requis.
 -   **Nombre maximal de tentatives de correction :** 2 par tâche.
@@ -427,7 +437,7 @@ dépôt, puis validées avant implémentation.
 
 ### Création du dépôt
 
-Le projet Codelix doit être créé dans un nouveau dépôt, en parallèle de tout dépôt existant. Utiliser le plugin de création de dépôt disponible dans l’environnement. Le dépôt existant ne doit pas être modifié. Si le plugin nécessaire n’est pas disponible ou si la création exige une information manquante, le signaler et attendre les instructions de l’utilisateur.
+Le projet Vybelix doit être créé dans un nouveau dépôt, en parallèle de tout dépôt existant. Utiliser le plugin de création de dépôt disponible dans l’environnement. Le dépôt existant ne doit pas être modifié. Si le plugin nécessaire n’est pas disponible ou si la création exige une information manquante, le signaler et attendre les instructions de l’utilisateur.
 
 Avant la première modification du nouveau dépôt, établir un point de retour Git. Ne jamais inclure dans ce point de retour des fichiers ou modifications provenant d’un dépôt existant sans autorisation explicite.
 
@@ -518,7 +528,7 @@ résolus par des suppositions.
 
 ## 17. Instruction initiale à donner à Codex
 
-> Tu travailles sur **Codelix**, un orchestrateur multi-modèles d'IA pour le développement logiciel. Crée d’abord un nouveau dépôt en parallèle de tout dépôt existant, en utilisant le plugin de création de dépôt disponible. Ne modifie pas le dépôt existant. Si le plugin requis n’est pas disponible ou qu’une information indispensable manque, explique le blocage et attends mes instructions.
+> Tu travailles sur **Vybelix**, un orchestrateur multi-modèles d'IA pour le développement logiciel. Crée d’abord un nouveau dépôt en parallèle de tout dépôt existant, en utilisant le plugin de création de dépôt disponible. Ne modifie pas le dépôt existant. Si le plugin requis n’est pas disponible ou qu’une information indispensable manque, explique le blocage et attends mes instructions.
 >
 > Réalise uniquement la Phase 0 : audit du nouveau dépôt et préparation de l’architecture. Examine les fichiers, la structure, les technologies, les points d’entrée, les tests, la configuration et les changements présents. Identifie les éléments réutilisables, les écarts avec ce cahier des charges, les risques et les blocages. La cible est Python 3.12.x sous Windows ; relève les contraintes réelles sans modifier le code ni installer de dépendances.
 >

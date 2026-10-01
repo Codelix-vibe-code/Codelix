@@ -176,6 +176,9 @@ class GeminiAdapter:
                 raise TransientProviderError(
                     message, retryable=True, fallback=True, **common
                 ) from exc
+            if status in (400, 422):
+                # Clé invalide, modèle inconnu ou requête rejetée : essayer le candidat suivant.
+                raise ProviderError(f"Gemini a rejeté la requête (HTTP {status}).", fallback=True, **common) from exc
             raise ProviderError(f"Gemini a renvoyé HTTP {status}.", fatal=True, **common) from exc
         except (TimeoutError, socket.timeout) as exc:
             raise NetworkError("Délai dépassé lors de l'appel Gemini.", provider=self.name, model=model, retryable=True, fallback=True) from exc

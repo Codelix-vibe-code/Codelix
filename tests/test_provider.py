@@ -16,6 +16,7 @@ from vybelix.providers import (
     ModelNotFoundError,
     MistralAdapter,
     OpenRouterAdapter,
+    ProviderError,
     ModelRouter,
     NetworkError,
     RateLimitError,
@@ -110,6 +111,7 @@ class GeminiAdapterTests(unittest.TestCase):
 
     def test_maps_http_statuses(self):
         cases = [
+            (400, ProviderError),
             (401, AuthenticationError),
             (403, AccessDeniedError),
             (404, ModelNotFoundError),
@@ -245,13 +247,22 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(first.calls, ["one", "one", "one"])
         self.assertEqual(sleep.call_args_list, [call(1.0), call(2.0)])
 
-    def test_authentication_failure_stops_without_fallback(self):
+    def test_authentication_failure_uses_configured_fallback(self):
         first = FakeProvider(AuthenticationError("bad key", provider="first", model="one", fatal=True))
-        second = FakeProvider("must not be called")
+        second = FakeProvider("ok")
         router = ModelRouter({"first": first, "second": second}, {"planner": ["first:one", "second:two"]})
+        self.assertEqual(router.complete("planner", [{"role": "user", "content": "hi"}]), "ok")
+        self.assertEqual(first.calls, ["one"])
+        self.assertEqual(second.calls, ["two"])
+        self.assertEqual(router.last_trace[0].status_code, None)
+        self.assertEqual(router.last_trace[-1].outcome, "success")
+
+    def test_authentication_failure_without_fallback_is_reported(self):
+        first = FakeProvider(AuthenticationError("bad key", provider="first", model="one", fatal=True))
+        router = ModelRouter({"first": first}, {"planner": ["first:one"]})
         with self.assertRaises(RoutingError):
             router.complete("planner", [{"role": "user", "content": "hi"}])
-        self.assertEqual(second.calls, [])
+        self.assertEqual(first.calls, ["one"])
 
     def test_403_uses_explicit_fallback_candidate(self):
         first = FakeProvider(AccessDeniedError("denied", provider="first", model="one", fallback=True))
@@ -259,6 +270,16 @@ class RouterTests(unittest.TestCase):
         router = ModelRouter({"first": first, "second": second}, {"planner": ["first:one", "second:two"]})
         self.assertEqual(router.complete("planner", [{"role": "user", "content": "hi"}]), "ok")
         self.assertEqual(second.calls, ["two"])
+
+    def test_400_uses_explicit_fallback_candidate(self):
+        first = FakeProvider(ProviderError("bad request", provider="first", model="one", status_code=400, fallback=True))
+        second = FakeProvider("ok")
+        router = ModelRouter({"first": first, "second": second}, {"planner": ["first:one", "second:two"]})
+        self.assertEqual(router.complete("planner", [{"role": "user", "content": "hi"}]), "ok")
+        self.assertEqual(first.calls, ["one"])
+        self.assertEqual(second.calls, ["two"])
+        self.assertEqual(router.last_trace[0].status_code, 400)
+        self.assertEqual(router.last_trace[-1].outcome, "success")
 
     def test_rejects_no_configured_candidates(self):
         router = ModelRouter({}, {"planner": []})

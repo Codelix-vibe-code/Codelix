@@ -27,7 +27,7 @@ class OpenAICompatibleAdapter:
         self, name: str, settings: ProviderSettings, *, api_key: str | None = None,
         timeout_seconds: int = 300,
     ) -> None:
-        if name not in {"nvidia", "groq", "openrouter", "mistral"}:
+        if name not in {"openai", "nvidia", "groq", "openrouter", "mistral"}:
             raise ValueError("Fournisseur compatible non pris en charge.")
         if isinstance(timeout_seconds, bool) or not isinstance(timeout_seconds, int) or not 1 <= timeout_seconds <= 300:
             raise ValueError("timeout_seconds doit être compris entre 1 et 300.")
@@ -58,13 +58,15 @@ class OpenAICompatibleAdapter:
                 raise ValueError(f"Message invalide à l'index {index}.")
         body: dict[str, Any] = {"model": model, "messages": messages, "stream": True}
         if options is not None:
-            allowed = {"max_tokens", "max_completion_tokens", "temperature", "top_p", "seed", "response_format", "stream"}
+            allowed = {"max_tokens", "max_completion_tokens", "temperature", "top_p", "seed", "response_format", "stream", "reasoning"}
             if not isinstance(options, dict) or options.keys() - allowed:
                 raise ValueError("Options Chat Completions invalides ou non prises en charge.")
             if "stream" in options and not isinstance(options["stream"], bool):
                 raise ValueError("stream doit être un booléen.")
             if "response_format" in options and not isinstance(options["response_format"], dict):
                 raise ValueError("response_format doit être un objet.")
+            if "reasoning" in options and (self.name != "openrouter" or not isinstance(options["reasoning"], dict)):
+                raise ValueError("reasoning doit être un objet OpenRouter.")
             body.update(options)
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"}
         if self.name == "openrouter":
@@ -99,13 +101,16 @@ class OpenAICompatibleAdapter:
                 raise NetworkError(f"{self.name} a expiré la requête.", retryable=True, fallback=True, **common) from exc
             if 500 <= status <= 599:
                 raise TransientProviderError(f"{self.name} a renvoyé une erreur serveur.", retryable=True, fallback=True, **common) from exc
+            if status in (400, 422):
+                # Requête ou modèle rejeté par ce fournisseur : essayer le candidat suivant.
+                raise ProviderError(f"{self.name} a rejeté la requête (HTTP {status}).", fallback=True, **common) from exc
             raise ProviderError(f"{self.name} a renvoyé HTTP {status}.", fatal=True, **common) from exc
         except (TimeoutError, socket.timeout) as exc:
             raise NetworkError(f"Délai dépassé lors de l'appel {self.name}.", provider=self.name, model=model, retryable=True, fallback=True) from exc
         except URLError as exc:
             raise NetworkError(f"Erreur réseau lors de l'appel {self.name}.", provider=self.name, model=model, retryable=True, fallback=True) from exc
-        if not isinstance(text, str) or not text:
-            raise InvalidResponseError(f"Réponse {self.name} sans texte exploitable.", provider=self.name, model=model, fatal=True)
+        if not isinstance(text, str) or not text.strip():
+            raise InvalidResponseError(f"Réponse {self.name} sans texte exploitable (limite de sortie possiblement consommée par le raisonnement).", provider=self.name, model=model, fallback=True)
         return text
 
     def _read_json_text(self, raw: bytes, model: str) -> str:
@@ -126,6 +131,7 @@ class OpenAICompatibleAdapter:
 
     def _read_sse_text(self, response, model: str) -> str:
         parts: list[str] = []
+        finish_reasons: list[str] = []
         data_lines: list[str] = []
 
         def consume_event() -> None:
@@ -141,6 +147,9 @@ class OpenAICompatibleAdapter:
                 if not isinstance(choices, list):
                     raise TypeError
                 for choice in choices:
+                    finish_reason = choice.get("finish_reason")
+                    if isinstance(finish_reason, str):
+                        finish_reasons.append(finish_reason)
                     delta = choice.get("delta", {})
                     content = delta.get("content") if isinstance(delta, dict) else None
                     if isinstance(content, str):
@@ -165,4 +174,7 @@ class OpenAICompatibleAdapter:
                 consume_event()
             elif line.startswith("data:"):
                 data_lines.append(line[5:].lstrip())
-        return "".join(parts)
+        text = "".join(parts)
+        if not text.strip() and "length" in finish_reasons:
+            raise InvalidResponseError(f"Réponse {self.name} vide : la limite max_tokens a été atteinte avant le texte visible.", provider=self.name, model=model, fallback=True)
+        return text

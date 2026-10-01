@@ -80,24 +80,39 @@ def _ensure_acyclic(graph: dict[str, list[str]], label: str) -> None:
         visit(node)
 
 
-def validate_planner_output(value: Any, *, expected_project_id: str | None = None) -> dict[str, Any]:
+def validate_planner_output(
+    value: Any,
+    *,
+    expected_project_id: str | None = None,
+    require_role_match: bool = False,
+) -> dict[str, Any]:
     """Valide et retourne un plan Planner conforme à planner-v1."""
     payload = _object(value, "plan")
-    _required_keys(
-        payload,
-        {"schema_version", "project_id", "request_summary", "affected_paths", "tasks"},
-        "plan",
-    )
-    if payload["schema_version"] != "1.0":
+    required = {"schema_version", "project_id", "request_summary", "affected_paths", "tasks"}
+    missing = required - payload.keys()
+    extra = payload.keys() - required - {"plain_summary"}
+    if missing or extra:
+        raise ContractError(
+            "plan: champs obligatoires manquants ou champs non reconnus: "
+            + ", ".join(sorted(missing | extra)) + "."
+        )
+    if payload["schema_version"] not in {"1.0", "1.1"}:
         raise ContractError("Version de schéma Planner non prise en charge.")
+    if "plain_summary" in payload:
+        _text(payload["plain_summary"], "plain_summary")
     project_id = _text(payload["project_id"], "project_id")
     if expected_project_id is not None and project_id != expected_project_id:
         raise ContractError("project_id ne correspond pas au projet actif.")
     _text(payload["request_summary"], "request_summary")
     if not isinstance(payload["affected_paths"], list):
         raise ContractError("affected_paths doit être une liste.")
+    # Planner may describe a directory with a trailing slash (for example "src/").
+    # Canonicalize that harmless notation while retaining strict traversal checks.
+    affected_paths = []
     for path in payload["affected_paths"]:
-        validate_relative_path(path)
+        if isinstance(path, str) and path.endswith("/") and not path.endswith("//"):
+            path = path[:-1]
+        affected_paths.append(validate_relative_path(path))
 
     tasks = payload["tasks"]
     if not isinstance(tasks, list) or not 1 <= len(tasks) <= 50:
@@ -123,10 +138,50 @@ def validate_planner_output(value: Any, *, expected_project_id: str | None = Non
         _text(task["title"], f"tasks[{index}].title")
         _text(task["description"], f"tasks[{index}].description")
         _text(task["verification_strategy"], f"tasks[{index}].verification_strategy")
-        if task["type"] not in {"analysis", "code", "test", "documentation"}:
-            raise ContractError(f"Type de tâche invalide pour {task_id}.")
-        if task["role"] not in {"planner", "coder", "tester", "verifier"}:
-            raise ContractError(f"Rôle invalide pour {task_id}.")
+        task_type = task["type"]
+        type_aliases = {
+            "planning": "analysis",
+            "research": "analysis",
+            "implementation": "code",
+            "coding": "code",
+            "verification": "test",
+            "testing": "test",
+            "docs": "documentation",
+        }
+        if isinstance(task_type, str):
+            task_type = type_aliases.get(task_type.strip().lower(), task_type)
+        if task_type not in {"analysis", "code", "test", "documentation"}:
+            raise ContractError(f"Type de tâche invalide pour {task_id}: {task['type']!r}.")
+        task["type"] = task_type
+        task_role = task["role"]
+        role_aliases = {
+            "analyst": "planner",
+            "developer": "coder",
+            "implementer": "coder",
+            "programmer": "coder",
+            "quality assurance": "tester",
+            "quality_assurance": "tester",
+            "qa": "tester",
+            "review": "verifier",
+            "reviewer": "verifier",
+        }
+        if isinstance(task_role, str):
+            task_role = role_aliases.get(task_role.strip().lower(), task_role)
+        if task_role not in {"planner", "coder", "tester", "verifier"}:
+            raise ContractError(f"Rôle invalide pour {task_id}: {task['role']!r}.")
+        task["role"] = task_role
+        if require_role_match:
+            if task_role in {"planner", "verifier"} or task_type == "analysis":
+                raise ContractError(
+                    f"Tâche non exécutable dans le plan pour {task_id}: l'analyse appartient au Planner; "
+                    "les tâches différées doivent être réalisables par coder ou tester."
+                )
+            expected_role = {"code": "coder", "test": "tester", "documentation": "coder"}[task_type]
+            if task_role != expected_role:
+                raise ContractError(
+                    f"Rôle incohérent pour {task_id}: le type {task_type!r} doit être assigné à {expected_role!r}, "
+                    f"pas à {task_role!r}."
+                )
         if isinstance(task["priority"], bool) or not isinstance(task["priority"], int) or not 1 <= task["priority"] <= 5:
             raise ContractError(f"priority doit être un entier de 1 à 5 pour {task_id}.")
         dependencies = _string_list(task["dependencies"], f"tasks[{index}].dependencies")
@@ -153,19 +208,30 @@ def validate_planner_output(value: Any, *, expected_project_id: str | None = Non
         {task_id: ([parent] if parent else []) for task_id, parent in parents.items()},
         "la hiérarchie des tâches",
     )
-    return dict(payload)
+    result = dict(payload)
+    result["affected_paths"] = affected_paths
+    return result
 
 
 def validate_coder_output(value: Any, *, expected_task_id: str) -> dict[str, Any]:
     """Valide une proposition Coder sans appliquer les fichiers."""
     payload = _object(value, "proposition Coder")
-    _required_keys(
-        payload,
-        {"schema_version", "task_id", "summary", "files", "notes", "verification_hints"},
-        "proposition Coder",
-    )
-    if payload["schema_version"] != "1.0":
+    required = {"schema_version", "task_id", "summary", "files", "notes", "verification_hints"}
+    missing = required - payload.keys()
+    extra = payload.keys() - required - {"explanation"}
+    if missing or extra:
+        raise ContractError(
+            "proposition Coder: champs obligatoires manquants ou champs non reconnus: "
+            + ", ".join(sorted(missing | extra)) + "."
+        )
+    if payload["schema_version"] not in {"1.0", "1.1"}:
         raise ContractError("Version de schéma Coder non prise en charge.")
+    if "explanation" in payload:
+        explanation = _object(payload["explanation"], "explanation")
+        _required_keys(explanation, {"what_changed", "why", "how_to_verify"}, "explanation")
+        _string_list(explanation["what_changed"], "explanation.what_changed", nonempty=True)
+        _text(explanation["why"], "explanation.why")
+        _string_list(explanation["how_to_verify"], "explanation.how_to_verify", nonempty=True)
     if _text(payload["task_id"], "task_id") != expected_task_id:
         raise ContractError("task_id ne correspond pas à la tâche active.")
     _text(payload["summary"], "summary")

@@ -6,9 +6,19 @@
   "additionalProperties": false,
   "required": ["schema_version", "task_id", "summary", "files", "notes", "verification_hints"],
   "properties": {
-    "schema_version": {"const": "1.0"},
+    "schema_version": {"enum": ["1.0", "1.1"]},
     "task_id": {"type": "string", "minLength": 1},
     "summary": {"type": "string", "minLength": 1},
+    "explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["what_changed", "why", "how_to_verify"],
+      "properties": {
+        "what_changed": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "why": {"type": "string", "minLength": 1},
+        "how_to_verify": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}}
+      }
+    },
     "files": {"type": "array", "maxItems": 50, "items": {"$ref": "#/$defs/file"}},
     "notes": {"type": "array", "items": {"type": "string"}},
     "verification_hints": {"type": "array", "items": {"type": "string"}}
