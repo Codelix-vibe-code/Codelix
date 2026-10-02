@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Vybelix — orchestrateur multi-modèles d'IA pour le développement logiciel"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = ["pywebview==6.2.1"]
 
 [project.scripts]
 vybelix = "vybelix.cli:main"

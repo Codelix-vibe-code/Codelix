@@ -150,7 +150,12 @@ def _proposal_snapshot(root: Path) -> list[dict[str, Any]]:
     return proposals
 
 
-def _pending_plan(root: Path, project_id: str, approved_ids: set[str] | None = None) -> dict[str, Any] | None:
+def _pending_plan(
+    root: Path,
+    project_id: str,
+    approved_ids: set[str] | None = None,
+    task_records: list[dict[str, Any]] | None = None,
+) -> dict[str, Any] | None:
     file = project_cache_root(root) / "plan.json"
     if not file.is_file() or file.is_symlink() or not file.resolve().is_relative_to(root):
         return None
@@ -168,10 +173,43 @@ def _pending_plan(root: Path, project_id: str, approved_ids: set[str] | None = N
     summary = value.get("request_summary")
     approved_ids = approved_ids or set()
     task_ids = {task.get("id") for task in tasks if isinstance(task.get("id"), str)}
+    archive_file = project_cache_root(root) / "plan-completed.json"
+    if archive_file.is_file() and not archive_file.is_symlink() and archive_file.resolve().is_relative_to(root):
+        try:
+            archive = json.loads(archive_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            archive = None
+        archived_ids = archive.get("task_ids") if isinstance(archive, dict) else None
+        if (isinstance(archive, dict) and archive.get("project_id") == project_id
+                and isinstance(archived_ids, list) and all(isinstance(item, str) for item in archived_ids)
+                and set(archived_ids) == task_ids and task_ids):
+            return None
+    # Also recognize cycles completed before completion markers were introduced.
+    # This keeps old, already-finished plans from leaving every agent at 100%.
+    approved_ids = approved_ids or set()
+    if task_ids and task_ids.issubset(approved_ids):
+        records_by_id = {item.get("id"): item for item in (task_records or []) if isinstance(item, dict)}
+        cycle_complete = True
+        for task_id in task_ids:
+            record = records_by_id.get(task_id)
+            verifications = record.get("verifications", []) if record else []
+            applied = any(isinstance(item, dict) and item.get("command") == "vybelix apply" for item in verifications)
+            actual = [item for item in verifications if isinstance(item, dict) and item.get("command") != "vybelix apply"]
+            if (not record or record.get("status") != "done" or not applied
+                    or not actual or actual[-1].get("exit_code") != 0):
+                cycle_complete = False
+                break
+        if cycle_complete:
+            return None
     return {"request_summary": summary[:1000] if isinstance(summary, str) else "Plan en attente", "tasks": tasks, "approved": bool(task_ids) and task_ids.issubset(approved_ids)}
 
 
 def _agent_progress(tasks: list[dict[str, Any]], operations: list[dict[str, Any]], history: list[dict[str, Any]], proposals: list[dict[str, Any]], pending_plan: dict[str, Any] | None) -> list[dict[str, Any]]:
+    active_plan_ids = {
+        task["id"] for task in (pending_plan["tasks"] if pending_plan and pending_plan.get("approved") else [])
+        if isinstance(task, dict) and isinstance(task.get("id"), str)
+    }
+    tasks = [task for task in tasks if task["id"] in active_plan_ids]
     by_id = {task["id"]: task for task in tasks}
     proposal_ids = {proposal["task_id"] for proposal in proposals}
     active_ops = [operation for operation in operations if operation["status"] in {"queued", "running"}]
@@ -250,7 +288,7 @@ def project_snapshot(project: Path, actions: UIActions | None = None) -> dict[st
             })
     history = actions.history() if actions else []
     operations = actions.recent_operations() if actions else []
-    pending_plan = _pending_plan(root, progress["project_id"], {task["id"] for task in tasks})
+    pending_plan = _pending_plan(root, progress["project_id"], {task["id"] for task in tasks}, tasks)
     plan_tasks = {}
     for event in history:
         if event.get("type") == "plan_approved":

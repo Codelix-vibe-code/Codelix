@@ -101,7 +101,9 @@ def _init(project: Path) -> int:
     if config_path.exists():
         print(f"Configuration déjà présente : {config_path}")
     else:
-        template = Path(__file__).resolve().parents[2] / "config.example.toml"
+        template = Path(__file__).with_name("config.example.toml")
+        if not template.is_file():
+            template = Path(__file__).resolve().parents[2] / "config.example.toml"
         if not template.is_file():
             raise ConfigurationError("Modèle config.example.toml introuvable à côté du paquet source.")
         shutil.copyfile(template, config_path)
@@ -480,6 +482,17 @@ def _undo(project: Path) -> int:
     if synchronized_tasks:
         progress["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         progress_store.save(progress)
+        # If this was the archived cycle's application, reopen its progress cards.
+        completion_path = project_cache_root(project) / "plan-completed.json"
+        if completion_path.is_file() and not completion_path.is_symlink():
+            try:
+                completion = json.loads(completion_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                completion = None
+            completed_ids = completion.get("task_ids") if isinstance(completion, dict) else None
+            if (isinstance(completed_ids, list) and all(isinstance(item, str) for item in completed_ids)
+                    and set(completed_ids).intersection(undone_task_ids)):
+                completion_path.unlink(missing_ok=True)
         event_path = _cache_file(project, "events.json")
         if event_path.is_file() and not event_path.is_symlink():
             try:
@@ -501,6 +514,10 @@ def _undo(project: Path) -> int:
                     if (isinstance(event, dict) and event.get("type") == "verification_completed"
                             and event_task_ids.intersection(undone_task_ids)
                             and (event.get("rollback_id") == preview.backup_id or (apply_event_index >= 0 and event.get("rollback_id") is None and index > apply_event_index))):
+                        event["undone"] = True
+                        event["undone_at"] = undone_at
+                    if (isinstance(event, dict) and event.get("type") == "plan_completed"
+                            and event_task_ids.intersection(undone_task_ids)):
                         event["undone"] = True
                         event["undone_at"] = undone_at
                 events.append({

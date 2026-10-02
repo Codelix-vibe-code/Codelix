@@ -550,6 +550,11 @@ class UIActions:
             task = next((item for item in plan["tasks"] if item["id"] == task_id), None)
             if task is None or task["role"] not in {"coder", "tester"}:
                 raise UIActionError("Cette tâche n’est pas une tâche Coder ou Tester générable.")
+            active_proposal_path = self._proposal_path(task_id)
+            if active_proposal_path.is_symlink():
+                raise UIActionError("La proposition active est un lien non autorisé.")
+            if active_proposal_path.exists():
+                raise UIActionError("Une proposition est déjà en attente pour cette tâche ; examine-la avant d’en générer une autre.")
             states = {item["id"]: item["status"] for item in progress["tasks"]}
             if any(states.get(dep) != "done" for dep in task["dependencies"]):
                 raise UIActionError("Les dépendances de cette tâche ne sont pas terminées.")
@@ -688,6 +693,7 @@ class UIActions:
                         duration_seconds=auto_verification.get("duration_seconds"),
                         automatic=True,
                     )
+                    self._archive_completed_plan_if_ready(progress)
             return {
                 "applied": True,
                 "files": list(result.written),
@@ -735,7 +741,43 @@ class UIActions:
             store.save(progress)
             latest_apply = next((item for item in reversed(task["verifications"]) if isinstance(item, dict) and item.get("command") == "vybelix apply"), None)
             self._record_event("verification_completed", task_ids=[task_id], command=result.command, exit_code=result.exit_code, passed=result.passed, rollback_id=latest_apply.get("execution_id") if latest_apply else None, duration_seconds=result.duration_seconds)
+            self._archive_completed_plan_if_ready(progress)
             return result.as_dict()
+
+    def _archive_completed_plan_if_ready(self, progress: dict[str, Any]) -> bool:
+        """Close the active cycle once each planned change is applied and verified successfully."""
+        plan_path = self._cache_path("plan.json")
+        archive_path = self._cache_path("plan-completed.json")
+        if plan_path.is_symlink() or archive_path.is_symlink() or not plan_path.is_file():
+            return False
+        try:
+            plan = validate_planner_output(
+                json.loads(plan_path.read_text(encoding="utf-8")),
+                expected_project_id=progress["project_id"],
+            )
+        except (OSError, json.JSONDecodeError, ValueError, KeyError):
+            return False
+        task_ids = [item["id"] for item in plan["tasks"]]
+        if not task_ids:
+            return False
+        tasks = {item["id"]: item for item in progress["tasks"]}
+        for task_id in task_ids:
+            task = tasks.get(task_id)
+            if task is None or task["status"] != "done":
+                return False
+            records = [item for item in task["verifications"] if isinstance(item, dict)]
+            applied = any(item.get("command") == "vybelix apply" for item in records)
+            actual_verifications = [item for item in records if item.get("command") != "vybelix apply"]
+            if not applied or not actual_verifications or actual_verifications[-1].get("exit_code") != 0:
+                return False
+        completed_at = _now()
+        _write_json(archive_path, {
+            "project_id": progress["project_id"],
+            "task_ids": task_ids,
+            "archived_at": completed_at,
+        })
+        self._record_event("plan_completed", task_ids=task_ids, completed_at=completed_at)
+        return True
 
     def history(self) -> list[dict[str, Any]]:
         path = self._cache_path("events.json")

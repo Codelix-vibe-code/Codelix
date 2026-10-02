@@ -1,4 +1,4 @@
-const state = { snapshot: null, activeView: "dashboard", chatDraft: "", apiKeySession: null, apiKeySetupRequired: true, tourIndex: null, tourKeyHandler: null, tourResizeHandler: null, pendingAgentTaskId: null, pendingProposalTaskId: null, pendingVerificationTaskId: null, focusPlannerPlan: false };
+const state = { snapshot: null, activeView: "dashboard", chatDraft: "", apiKeySession: null, apiKeySetupRequired: true, tourIndex: null, tourKeyHandler: null, tourResizeHandler: null, pendingAgentTaskId: null, pendingProposalTaskId: null, pendingVerificationTaskId: null, pendingCodeTasks: new Set(), focusPlannerPlan: false };
 const tourStorageKey = "vybelix.ui.product-tour.v1";
 const tourSteps = [
   { view: "dashboard", selector: '[data-view="dashboard"]', title: "Accueil", text: "Retrouve ici l’état général du projet : tâches, vérifications, fichiers et activité récente." },
@@ -311,10 +311,26 @@ function renderTasks(snapshot, host) {
     if (snapshot.pending_plan?.approved && ["coder", "tester"].includes(task.role) && ["todo", "needs_review"].includes(task.status) && !proposalIds.has(task.id) && ready) {
       const generate = node("button", "secondary-action task-action", task.role === "tester" ? "Préparer les tests" : "Proposer du code");
       generate.type = "button";
+      generate.dataset.codeTaskId = task.id;
+      generate.disabled = state.pendingCodeTasks.has(task.id);
       generate.addEventListener("click", async () => {
+        if (state.pendingCodeTasks.has(task.id)) return;
         if (!window.confirm(`Lancer l’agent ${task.role} pour ${task.id} ? Cela crée une proposition sans modifier les fichiers.`)) return;
-        const result = await runOperation("/api/code", { task_id: task.id }, host, "Préparation en cours…");
-        if (result) { state.pendingProposalTaskId = task.id; showView("changes"); }
+        state.pendingCodeTasks.add(task.id);
+        generate.disabled = true;
+        generate.textContent = "Préparation en cours…";
+        try {
+          const result = await runOperation("/api/code", { task_id: task.id }, host, "Préparation en cours…");
+          if (result) { state.pendingProposalTaskId = task.id; showView("changes"); }
+        } finally {
+          state.pendingCodeTasks.delete(task.id);
+          generate.disabled = false;
+          const currentButton = [...document.querySelectorAll("[data-code-task-id]")].find((button) => button.dataset.codeTaskId === task.id);
+          if (currentButton) {
+            currentButton.disabled = false;
+            currentButton.textContent = task.role === "tester" ? "Préparer les tests" : "Proposer du code";
+          }
+        }
       });
       card.append(generate);
     }
@@ -371,7 +387,19 @@ function openAgentDestination(destination) {
 function renderAgents(snapshot, host) {
   const panel = section("Équipe d’agents · progression réelle");
   const grid = node("div", "agent-grid");
-  const agents = snapshot.agents || [];
+  const planTasks = snapshot.pending_plan?.tasks || [];
+  const taskById = new Map((snapshot.tasks_detail || []).map((task) => [task.id, task]));
+  const completedCycle = Boolean(snapshot.pending_plan?.approved && planTasks.length && planTasks.every((planned) => {
+    const task = taskById.get(planned.id);
+    return task?.status === "done" && task.applied && task.verification_attempted && task.verification_exit_code === 0;
+  }));
+  const agents = (snapshot.agents || []).map((agent) => completedCycle ? {
+    ...agent,
+    status: agent.role === "planner" ? "Cycle terminé" : "Aucune tâche assignée",
+    progress: 0,
+    detail: agent.role === "planner" ? "Plan archivé · cycle vérifié" : "En attente du prochain plan",
+    current_task: null
+  } : agent);
   if (!agents.length) panel.append(node("p", "muted", "Aucun état d’agent disponible."));
   agents.forEach((agent) => {
     const card = node("article", `agent-card agent-${agent.role} agent-card-navigable`);
@@ -407,7 +435,7 @@ function renderAgents(snapshot, host) {
     grid.append(card);
   });
   panel.append(grid);
-  panel.append(node("p", "muted agent-footnote", "Les barres comptent uniquement les tâches achevées et les vérifications enregistrées. Une proposition à examiner reste en attente."));
+  panel.append(node("p", "muted agent-footnote", "Les barres suivent le plan actif. Après application et vérification réussie de toutes ses tâches, le plan est archivé et les indicateurs repartent à zéro ; les résultats restent dans l’historique."));
   host.append(panel);
   renderAgentModelAssignments(snapshot, host);
 }
@@ -992,8 +1020,14 @@ function renderVerification(snapshot, host) {
   if (!history.length) results.append(node("p", "muted", "Aucun résultat de vérification enregistré."));
   history.forEach(({ task_id, records }) => records.forEach((record) => {
     const status = record.exit_code == null ? "Délai dépassé" : record.exit_code === 0 ? "Réussie" : `Échec · code ${record.exit_code}`;
-    results.append(row(`${task_id} · ${status}`, `${record.command || "Commande inconnue"} · ${record.duration_seconds ?? "—"} s`));
-    if (record.summary) results.append(node("p", "muted result-summary", record.summary));
+    const item = node("details", "result-entry");
+    const heading = node("summary", "result-entry-heading");
+    heading.append(node("strong", "", `${task_id} · ${status}`), node("span", "muted", `${record.duration_seconds ?? "—"} s`));
+    const details = node("div", "result-entry-details");
+    details.append(node("span", "muted", "Commande"), node("code", "command-line", record.command || "Commande inconnue"));
+    if (record.summary) details.append(node("p", "muted", record.summary));
+    item.append(heading, details);
+    results.append(item);
   }));
   host.append(results);
 }
@@ -1051,8 +1085,10 @@ function renderHistory(snapshot, host) {
       const task = (snapshot.tasks_detail || []).find((item) => item.id === plannedTask.id);
       return task?.status === "done" && task.verification_attempted && task.verification_exit_code === 0;
     });
+    const completedEvent = complete && history.find((item) => item.type === "plan_completed" && !item.undone &&
+      [...(item.task_ids || [])].sort().join("|") === eventTaskIds.join("|"));
     const card = node("article", "detail-card");
-    const planTimestamp = complete ? (event.archived_at || event.timestamp) : event.timestamp;
+    const planTimestamp = complete ? (completedEvent?.completed_at || event.timestamp) : event.timestamp;
     card.append(node("strong", "", `${complete ? "Archivé · cycle terminé" : "Plan approuvé"} · ${planTimestamp || "date inconnue"}`));
     card.append(node("p", "muted", plan.request_summary || "Plan approuvé"));
     const toggle = node("button", "secondary-action", "Afficher le plan");
@@ -1080,14 +1116,21 @@ function renderHistory(snapshot, host) {
   host.append(planSection);
 
   const events = section("Historique des opérations Vybelix");
-  const activityHistory = history.filter((event) => event.type !== "plan_approved");
+  const activityHistory = history.filter((event) => !["plan_approved", "plan_completed"].includes(event.type));
   if (!activityHistory.length) events.append(node("p", "muted", "Aucune autre opération Vybelix persistée."));
   const labels = { plan_created: "Plan généré", plan_approved: "Plan approuvé", plan_rejected: "Plan refusé", proposal_created: "Proposition générée", proposal_rejected: "Proposition refusée", changes_applied: "Modifications appliquées", changes_undone: "Modifications annulées", verification_completed: "Vérification exécutée" };
   activityHistory.forEach((event) => {
     const taskLabel = (event.task_ids || []).join(", ");
     const detail = event.files?.join(", ") || event.command || (event.routing || []).map((attempt) => `${attempt.provider}:${attempt.model} ${attempt.outcome}`).join(" → ") || taskLabel || event.rollback_id || "Opération enregistrée";
     const label = event.undone ? (event.type === "verification_completed" ? "Vérification invalidée par l’annulation" : "Application annulée") : labels[event.type] || event.type;
-    events.append(row(`${label}${taskLabel ? ` · ${taskLabel}` : ""}`, `${event.timestamp} · ${detail}`));
+    const item = node("details", "history-entry");
+    const heading = node("summary", "history-entry-heading");
+    const timestamp = String(event.timestamp || "Date inconnue").replace("T", " ").replace(/\.\d+Z$/, "").replace(/Z$/, " UTC");
+    heading.append(node("strong", "", `${label}${taskLabel ? ` · ${taskLabel}` : ""}`), node("span", "muted", timestamp));
+    const extra = node("div", "history-entry-details");
+    extra.append(node("p", "muted", detail));
+    item.append(heading, extra);
+    events.append(item);
   });
   host.append(events);
 }
@@ -1661,6 +1704,24 @@ document.querySelectorAll(".nav-item[data-view]").forEach((button) => {
 });
 byId("open-settings").addEventListener("click", () => showView("settings"));
 byId("open-tour").addEventListener("click", startProductTour);
+
+function initializeDesktopWindowControls() {
+  const controls = byId("window-controls");
+  if (!controls || !window.pywebview?.api) return;
+  controls.hidden = false;
+  byId("window-minimize").addEventListener("click", () => window.pywebview.api.minimize());
+  byId("window-maximize").addEventListener("click", async () => {
+    const maximized = await window.pywebview.api.toggle_maximize();
+    const button = byId("window-maximize");
+    button.textContent = maximized ? "❐" : "□";
+    button.title = maximized ? "Restaurer" : "Agrandir";
+    button.setAttribute("aria-label", button.title);
+  });
+  byId("window-close").addEventListener("click", () => window.pywebview.api.close());
+  document.body.classList.add("desktop-window");
+}
+window.addEventListener("pywebviewready", initializeDesktopWindowControls, { once: true });
+if (window.pywebview?.api) initializeDesktopWindowControls();
 const projectPicker = byId("project-picker");
 const projectPathInput = byId("project-picker-path");
 const projectPickerError = byId("project-picker-error");
