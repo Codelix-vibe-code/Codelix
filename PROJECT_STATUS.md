@@ -1,17 +1,18 @@
 # État du projet Vybelix
 
-- **Dépôt :** [Vybelix/Vybelix](https://github.com/Vybelix/Vybelix), branche `main`; dernier commit distant confirmé avant ces changements : `daafe99`.
-- **Progression de référence :** [`docs/progress/tasks.json`](docs/progress/tasks.json), mise à jour le 1er octobre 2026.
+- **Dépôt :** [Vybelix/Vybelix](https://github.com/Vybelix/Vybelix), branche `main`.
+- **Progression de référence :** [`docs/progress/tasks.json`](docs/progress/tasks.json), mise à jour le 2 octobre 2026.
 - **Cahier des charges :** copie complète suivie dans [`docs/progress/PROJECT_BRIEF.md`](docs/progress/PROJECT_BRIEF.md); la copie source locale ignorée par Git reste conservée.
-- **Phases MVP :** phases 0, 1, 3, 4 et 5 terminées; le contexte compact local (CLI + Paramètres du cockpit) et la reprise confirmée des tâches sont ajoutés; Phase 2 en `needs_review` : 92 tests passent après ajout des fonctions de contexte et de reprise; une erreur 401 passe désormais au candidat de secours. NVIDIA GPT-OSS répond au prompt minimal, mais l’essai Planner a expiré sur GPT-OSS et GLM à 60 s; Gemini 401, Groq 403, OpenRouter network error without HTTP status, Mistral 429.
-- **Fournisseurs :** Gemini, OpenAI, Anthropic/Claude, NVIDIA, Groq, OpenRouter et Mistral sont raccordés au routeur local. NVIDIA GPT-OSS répond au prompt minimal; le smoke Planner a atteint le fallback mais n’a pas fourni de plan valide. Coder, application et vérification complets restent à confirmer. Les routes Planner/Coder/Tester sont maintenant modifiables depuis Modèles ou lors de l’ajout d’une clé API.
-- **Installation :** wheel construite et installée sous Python 3.12.10 dans un venv temporaire; ressources UI, imports `vybelix`/`codelix`, commandes CLI et 78 tests vérifiés.
+- **Phases MVP :** phases 0 à 5 terminées. Phase 2 est validée pour les fournisseurs conservés; Groq a été retiré de l’interface et des routes actives. La suite complète compte 102 tests réussis sous Python 3.12. NVIDIA GLM-5.3-Flash, Mistral Codestral et OpenRouter ont des générations réussies rapportées; Gemini a également des tests de connexion réussis rapportés, avec des erreurs intermittentes dans l’historique.
+- **Cycle des agents :** Planner → Coder → Tester → Vérifier confirmé pour C1, C2 et T1. Le Vérifier se déclenche automatiquement après application d’une tâche Tester et reste relançable manuellement.
+- **Fournisseurs :** routes Planner/Coder/Tester modifiables depuis Modèles ou lors de l’ajout d’une clé API. Le test NVIDIA des API Keys attend jusqu’à 200 s et laisse NVIDIA appliquer sa limite de sortie par défaut.
+- **Installation :** wheel construite et installée sous Python 3.12.10 dans un venv temporaire; ressources UI, imports `vybelix`/`codelix`, commandes CLI et 102 tests vérifiés.
 - **API Keys :** gestionnaire relié au `.env` local ignoré par Git. Les clés ne sont pas chiffrées sur disque; le PIN protège l’accès à l’interface uniquement.
-- **Changements locaux :** plusieurs fichiers demeurent modifiés/non suivis, dont le Skill Builder d’un autre chantier. Préserver leur contenu et ne pas les inclure dans une publication non ciblée.
+- **Synchronisation :** les changements d’interface, de workflow, de fournisseurs et de suivi sont préparés pour publication sur GitHub. `.env` et `codelix.toml` restent locaux et ignorés par Git.
 - **Skill Builder MVP :** gestion locale terminée et 93 tests passent. Création, validation, installation inactive, permissions, audit, configuration, mises à jour, désinstallation, contexte non fiable et contrôles statiques sont intégrés. L’exécution de code reste fermée : la sandbox avancée est post-MVP et aucun runtime isolé n’est disponible sur ce poste. Voir [`docs/skills/README.md`](docs/skills/README.md).
 
 - **Cahier principal — contexte/reprise :** contexte compact conservé dans `.vybelix-cache/context.json`, validation par projet/taille/secret/chemins, édition dans Paramètres; reprise CLI/UI pour tâches bloquées ou interrompues, dépendances requises et confirmation, aucun agent lancé automatiquement.
-- **Phase 2 :** conservée ouverte (`needs_review`); aucun adaptateur, routage ni appel réel modifié ou exécuté pendant ce travail.
+- **Phase 2 :** terminée pour les fournisseurs conservés, après réussite des tests automatisés et confirmation de générations réelles. Groq reste exclu comme demandé.
 
 
 ## 2026-10-01 — Rôles d’agents, propositions JSON et diagnostics

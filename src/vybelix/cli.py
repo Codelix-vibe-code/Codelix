@@ -458,7 +458,61 @@ def _undo(project: Path) -> int:
         print("Annulation refusée ; aucun fichier modifié.")
         return 0
     restored = manager.undo_latest(expected_backup_id=preview.backup_id)
+    progress_store = ProgressStore(_progress_path(project))
+    progress = progress_store.load()
+    restored_paths = set(restored)
+    synchronized_tasks = []
+    undone_task_ids = []
+    for task in progress["tasks"]:
+        records = task["verifications"]
+        apply_indexes = [index for index, item in enumerate(records) if isinstance(item, dict) and item.get("command") == "vybelix apply" and item.get("execution_id") == preview.backup_id]
+        if not apply_indexes:
+            continue
+        apply_index = apply_indexes[-1]
+        # Results recorded after this application no longer describe the restored files.
+        task["verifications"] = [item for index, item in enumerate(records) if index < apply_index]
+        task["files_modified"] = [item for item in task["files_modified"] if item not in restored_paths]
+        still_applied = any(isinstance(item, dict) and item.get("command") == "vybelix apply" for item in task["verifications"])
+        task["status"] = "in_progress" if still_applied else "todo"
+        task["last_result"] = "Application annulée par vybelix undo ; progression synchronisée."
+        synchronized_tasks.append(task["id"])
+        undone_task_ids.append(task["id"])
+    if synchronized_tasks:
+        progress["updated_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        progress_store.save(progress)
+        event_path = _cache_file(project, "events.json")
+        if event_path.is_file() and not event_path.is_symlink():
+            try:
+                events = json.loads(event_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                events = []
+            if isinstance(events, list):
+                undone_at = datetime.now(timezone.utc).isoformat()
+                apply_event_indexes = [
+                    index for index, event in enumerate(events)
+                    if isinstance(event, dict) and event.get("type") == "changes_applied" and event.get("rollback_id") == preview.backup_id
+                ]
+                apply_event_index = apply_event_indexes[-1] if apply_event_indexes else -1
+                for index, event in enumerate(events):
+                    if isinstance(event, dict) and event.get("type") == "changes_applied" and event.get("rollback_id") == preview.backup_id:
+                        event["undone"] = True
+                        event["undone_at"] = undone_at
+                    event_task_ids = set(event.get("task_ids", [])) if isinstance(event, dict) and isinstance(event.get("task_ids"), list) else set()
+                    if (isinstance(event, dict) and event.get("type") == "verification_completed"
+                            and event_task_ids.intersection(undone_task_ids)
+                            and (event.get("rollback_id") == preview.backup_id or (apply_event_index >= 0 and event.get("rollback_id") is None and index > apply_event_index))):
+                        event["undone"] = True
+                        event["undone_at"] = undone_at
+                events.append({
+                    "id": f"undo-{preview.backup_id}", "type": "changes_undone", "timestamp": undone_at,
+                    "task_ids": sorted(undone_task_ids), "rollback_id": preview.backup_id, "files": sorted(restored_paths),
+                })
+                temporary = event_path.with_name(event_path.name + ".tmp")
+                temporary.write_text(json.dumps(events[-200:], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+                os.replace(temporary, event_path)
     print("Annulation appliquée : " + ", ".join(restored))
+    if synchronized_tasks:
+        print("Progression synchronisée ; tâche(s) remise(s) à faire : " + ", ".join(synchronized_tasks))
     return 0
 
 

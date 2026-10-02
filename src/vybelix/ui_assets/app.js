@@ -1,4 +1,4 @@
-const state = { snapshot: null, activeView: "dashboard", chatDraft: "", apiKeySession: null, apiKeySetupRequired: true, tourIndex: null, tourKeyHandler: null, tourResizeHandler: null };
+const state = { snapshot: null, activeView: "dashboard", chatDraft: "", apiKeySession: null, apiKeySetupRequired: true, tourIndex: null, tourKeyHandler: null, tourResizeHandler: null, pendingAgentTaskId: null, pendingProposalTaskId: null, pendingVerificationTaskId: null, focusPlannerPlan: false };
 const tourStorageKey = "vybelix.ui.product-tour.v1";
 const tourSteps = [
   { view: "dashboard", selector: '[data-view="dashboard"]', title: "Accueil", text: "Retrouve ici l’état général du projet : tâches, vérifications, fichiers et activité récente." },
@@ -155,12 +155,30 @@ function renderChat(snapshot, host) {
   host.append(home);
 
   const plan = snapshot.pending_plan;
-  const latestPlanOperation = (snapshot.operations || []).find((operation) => operation.kind === "plan");
-  const previousDraftAfterFailure = latestPlanOperation?.status === "failed" && Boolean(plan);
-  const planTitle = previousDraftAfterFailure
-    ? "Brouillon précédent · dernière tentative échouée"
-    : plan ? (plan.approved ? "Plan approuvé" : "Plan à examiner") : "Plan récent";
-  const planCard = section(planTitle);
+  const taskById = new Map((snapshot.tasks_detail || []).map((task) => [task.id, task]));
+  const completedPlan = Boolean(plan?.approved && plan.tasks.length && plan.tasks.every((plannedTask) => {
+    const task = taskById.get(plannedTask.id);
+    return task?.status === "done" && task.verification_attempted && task.verification_exit_code === 0;
+  }));
+  let planCardForFocus = null;
+  if (completedPlan) {
+    const completedCard = section("Cycle terminé");
+    completedCard.classList.add("chat-plan-section");
+    completedCard.append(node("p", "muted", "Toutes les tâches sont terminées et vérifiées. Le plan est archivé dans Historique → Plans."));
+    const openPlans = node("button", "secondary-action", "Ouvrir l’historique des plans");
+    openPlans.type = "button";
+    openPlans.addEventListener("click", () => showView("history"));
+    completedCard.append(openPlans);
+    host.append(completedCard);
+    planCardForFocus = completedCard;
+  } else {
+    const latestPlanOperation = (snapshot.operations || []).find((operation) => operation.kind === "plan");
+    const previousDraftAfterFailure = latestPlanOperation?.status === "failed" && Boolean(plan);
+    const planTitle = previousDraftAfterFailure
+      ? "Brouillon précédent · dernière tentative échouée"
+      : plan ? (plan.approved ? "Plan approuvé" : "Plan à examiner") : "Plan récent";
+    const planCard = section(planTitle);
+    planCardForFocus = planCard;
   planCard.classList.add("chat-plan-section");
   if (previousDraftAfterFailure) {
     planCard.append(node("p", "muted", "La dernière tentative de planification a échoué. Le brouillon affiché provient d’une tentative précédente."));
@@ -205,7 +223,12 @@ function renderChat(snapshot, host) {
     }
     planCard.append(actions);
   }
-  host.append(planCard);
+    host.append(planCard);
+  }
+  if (state.focusPlannerPlan) {
+    state.focusPlannerPlan = false;
+    if (planCardForFocus) requestAnimationFrame(() => planCardForFocus.scrollIntoView({ block: "center", behavior: "smooth" }));
+  }
   const traces = (snapshot.history || []).filter((event) => ["plan_created", "proposal_created"].includes(event.type) && event.routing?.length);
   if (traces.length) {
     const last = traces[traces.length - 1];
@@ -242,6 +265,7 @@ function renderTasks(snapshot, host) {
   function makeTaskCard(task) {
     const planTask = planned.get(task.id) || task;
     const card = node("article", "task-card task-card-compact");
+    card.dataset.taskId = task.id;
     const heading = node("div", "task-card-heading");
     heading.append(node("strong", "", task.title || "Tâche sans titre"));
     heading.append(node("span", `task-status-pill status-${task.status}`, labels[task.status] || "Autre état"));
@@ -257,8 +281,15 @@ function renderTasks(snapshot, host) {
     if (task.files_modified?.length) content.append(node("p", "muted", `Fichiers modifiés : ${task.files_modified.join(", ")}`));
     if (planTask.affected_paths?.length) content.append(node("p", "muted", `Fichiers prévus : ${planTask.affected_paths.join(", ")}`));
     (task.acceptance_criteria || []).forEach((criterion) => content.append(node("small", "task-criterion", `✓ ${criterion}`)));
+    if (task.applied && task.status === "done" && !task.verification_attempted) content.append(node("p", "muted", "Approuvée et appliquée · tâche terminée. La vérification reste disponible sans bloquer ses dépendances."));
     details.append(content);
     card.append(details);
+    if (task.applied && (["in_progress", "needs_review"].includes(task.status) || (task.status === "done" && !task.verification_attempted))) {
+      const verifyStep = node("button", "secondary-action task-action", task.status === "done" ? "Ouvrir la vérification (non bloquante)" : "Ouvrir la vérification");
+      verifyStep.type = "button";
+      verifyStep.addEventListener("click", () => { state.pendingVerificationTaskId = task.id; showView("verification"); });
+      card.append(verifyStep);
+    }
 
     if (["blocked", "interrupted"].includes(task.status)) {
       const resume = node("button", "secondary-action task-action", "Reprendre la tâche");
@@ -274,14 +305,16 @@ function renderTasks(snapshot, host) {
       card.append(resume);
     }
 
-    const ready = (task.dependencies || []).every((dependency) => taskStates.get(dependency) === "done");
+    const unmetDependencies = (task.dependencies || []).filter((dependency) => taskStates.get(dependency) !== "done");
+    const ready = unmetDependencies.length === 0;
+    if (unmetDependencies.length) card.append(node("p", "muted task-dependency-wait", `En attente de ${unmetDependencies.join(", ")} : approuve et applique la tâche précédente pour débloquer celle-ci.`));
     if (snapshot.pending_plan?.approved && ["coder", "tester"].includes(task.role) && ["todo", "needs_review"].includes(task.status) && !proposalIds.has(task.id) && ready) {
-      const generate = node("button", "secondary-action task-action", task.role === "tester" ? "Vérifier la tâche" : "Proposer du code");
+      const generate = node("button", "secondary-action task-action", task.role === "tester" ? "Préparer les tests" : "Proposer du code");
       generate.type = "button";
       generate.addEventListener("click", async () => {
         if (!window.confirm(`Lancer l’agent ${task.role} pour ${task.id} ? Cela crée une proposition sans modifier les fichiers.`)) return;
         const result = await runOperation("/api/code", { task_id: task.id }, host, "Préparation en cours…");
-        if (result) showView("changes");
+        if (result) { state.pendingProposalTaskId = task.id; showView("changes"); }
       });
       card.append(generate);
     }
@@ -305,6 +338,35 @@ function renderTasks(snapshot, host) {
     other.forEach((task) => otherSection.append(makeTaskCard(task)));
     host.append(otherSection);
   }
+  if (state.pendingAgentTaskId) {
+    const target = [...host.querySelectorAll(".task-card")].find((card) => card.dataset.taskId === state.pendingAgentTaskId);
+    state.pendingAgentTaskId = null;
+    if (target) requestAnimationFrame(() => target.scrollIntoView({ block: "center", behavior: "smooth" }));
+  }
+}
+function agentDestination(agent, snapshot) {
+  if (agent.role === "planner") return { view: "chat", label: "le plan" };
+  if (agent.role === "verifier") {
+    const task = (snapshot.tasks_detail || []).find((item) => item.applied && (!item.verification_attempted || item.status === "needs_review"));
+    return { view: "verification", taskId: task?.id || agent.task_id || null, label: task ? `la vérification de ${task.id}` : "la vérification" };
+  }
+  const roleTasks = (snapshot.tasks_detail || []).filter((task) => task.role === agent.role);
+  const proposal = (snapshot.proposals || []).find((item) => roleTasks.some((task) => task.id === item.task_id));
+  if (proposal) return { view: "changes", taskId: proposal.task_id, label: "la proposition à approuver" };
+  const failedCheck = roleTasks.find((task) => task.applied && task.status === "needs_review" && task.verification_attempted && task.verification_exit_code !== 0);
+  if (failedCheck) return { view: "verification", taskId: failedCheck.id, label: `la reprise de vérification de ${failedCheck.id}` };
+  const activeTask = roleTasks.find((task) => task.status === "in_progress");
+  if (activeTask) return { view: "verification", taskId: activeTask.id, label: "la vérification de la tâche" };
+  const nextTask = roleTasks.find((task) => ["todo", "needs_review", "blocked", "interrupted"].includes(task.status));
+  return { view: "tasks", taskId: nextTask?.id || null, label: "les tâches" };
+}
+
+function openAgentDestination(destination) {
+  state.pendingAgentTaskId = destination.view === "tasks" ? destination.taskId : null;
+  state.pendingProposalTaskId = destination.view === "changes" ? destination.taskId : null;
+  state.pendingVerificationTaskId = destination.view === "verification" ? destination.taskId : null;
+  state.focusPlannerPlan = destination.view === "chat";
+  showView(destination.view);
 }
 function renderAgents(snapshot, host) {
   const panel = section("Équipe d’agents · progression réelle");
@@ -312,8 +374,10 @@ function renderAgents(snapshot, host) {
   const agents = snapshot.agents || [];
   if (!agents.length) panel.append(node("p", "muted", "Aucun état d’agent disponible."));
   agents.forEach((agent) => {
-    const card = node("article", `agent-card agent-${agent.role}`);
+    const card = node("article", `agent-card agent-${agent.role} agent-card-navigable`);
+    const destination = agentDestination(agent, snapshot);
     card.dataset.role = agent.role;
+    card.addEventListener("click", () => openAgentDestination(destination));
     const identity = node("div", "agent-identity");
     const agentMarks = { planner: "▤", coder: "</>", tester: "⌬", verifier: "✓" };
     const mark = node("span", "agent-orb", agentMarks[agent.role] || "◇");
@@ -336,7 +400,10 @@ function renderAgents(snapshot, host) {
     const fill = node("span", "agent-progress-fill");
     fill.style.width = `${Math.max(0, Math.min(100, agent.progress))}%`;
     progress.append(fill);
-    card.append(progressHead, progress);
+    const openButton = node("button", "agent-open-hint", `Ouvrir ${destination.label} →`);
+    openButton.type = "button";
+    openButton.addEventListener("click", (event) => { event.stopPropagation(); openAgentDestination(destination); });
+    card.append(progressHead, progress, openButton);
     grid.append(card);
   });
   panel.append(grid);
@@ -505,7 +572,7 @@ function renderModels(snapshot, host) {
   const provider = node("select", "select-control"); provider.required = true;
   const providerNames = {
     openai: "OpenAI / ChatGPT", anthropic: "Anthropic / Claude", gemini: "Google Gemini",
-    nvidia: "NVIDIA", openrouter: "OpenRouter", mistral: "Mistral", groq: "Groq"
+    nvidia: "NVIDIA", openrouter: "OpenRouter", mistral: "Mistral"
   };
   (snapshot.configured_providers || []).forEach((name) => {
     if (!providerNames[name]) return;
@@ -740,36 +807,113 @@ async function postSkillAction(url, payload) {
 }
 
 function renderFiles(snapshot, host) {
-  const listing = section("Explorateur du projet · lecture contrôlée");
+  const listing = section("Explorateur du projet · lecture et édition contrôlées");
   const search = node("input", "file-search");
   search.type = "search"; search.placeholder = "Filtrer les chemins…"; search.setAttribute("aria-label", "Filtrer les fichiers du projet");
   const list = node("div", "file-list");
-  const preview = node("section", "file-preview");
   function update(filter = "") {
     list.replaceChildren();
     const shown = snapshot.files.filter((entry) => entry.path.toLowerCase().includes(filter.toLowerCase()));
     if (!shown.length) list.append(node("p", "muted", "Aucun chemin correspondant."));
     shown.forEach((entry) => {
       const line = node(entry.type === "file" ? "button" : "div", `file-entry ${entry.type}`);
-      if (entry.type === "file") { line.type = "button"; line.addEventListener("click", async () => {
-        const response = await fetch(`/api/files/${encodeURIComponent(entry.path)}`, { headers: { Accept: "application/json" }, cache: "no-store" });
-        const data = await response.json();
-        preview.replaceChildren();
-        if (!response.ok) preview.append(node("p", "error-text", data.error || "Aperçu impossible."));
-        else { preview.append(node("h3", "", data.path)); const pre = node("pre", "file-content", data.content); preview.append(pre); }
-        preview.hidden = false;
-      }); }
+      if (entry.type === "file") {
+        line.type = "button";
+        line.title = `Lire ou modifier ${entry.path}`;
+        line.setAttribute("aria-label", `Lire ou modifier ${entry.path}`);
+        line.addEventListener("click", () => openProjectFileEditor(entry.path));
+      }
       line.append(node("span", "", entry.type === "directory" ? "▸" : "·"), node("span", "", entry.path));
-      if (entry.type === "file") line.append(node("small", "muted", entry.size_bytes == null ? "" : `${entry.size_bytes} o`));
+      if (entry.type === "file") line.append(node("small", "file-entry-open", "Lire / modifier"), node("small", "muted", entry.size_bytes == null ? "" : `${entry.size_bytes} o`));
       list.append(line);
     });
   }
   search.addEventListener("input", () => update(search.value));
   update();
-  preview.hidden = true;
-  listing.append(search, list, preview);
-  listing.append(node("p", "muted", `${snapshot.files.length} entrée(s) listée(s), maximum 500. Les secrets, dépendances, propositions et sauvegardes sont exclus. Les fichiers texte UTF-8 de moins de 200 Ko peuvent être consultés.`));
+  listing.append(search, list);
+  listing.append(node("p", "muted", `${snapshot.files.length} entrée(s) listée(s), maximum 500. Les secrets, dépendances, propositions et sauvegardes sont exclus. Les fichiers texte UTF-8 de moins de 200 Ko peuvent être consultés et modifiés.`));
   host.append(listing);
+}
+
+async function openProjectFileEditor(path) {
+  try {
+    const response = await fetch(`/api/files/${encodeURIComponent(path)}`, { headers: { Accept: "application/json" }, cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Ouverture impossible.");
+
+    const dialog = document.createElement("dialog"); dialog.className = "file-editor-dialog";
+    const shell = node("div", "file-editor-shell");
+    const header = node("header", "file-editor-header");
+    const heading = node("div", "file-editor-heading");
+    heading.append(node("h2", "", data.path), node("p", "muted", "Lecture et édition locale · UTF-8"));
+    const close = node("button", "secondary-action", "Fermer"); close.type = "button";
+    header.append(heading, close);
+
+    const editor = node("textarea", "file-editor-input");
+    editor.value = data.content; editor.spellcheck = false; editor.setAttribute("aria-label", `Contenu de ${data.path}`);
+    const originalContent = editor.value; // Textarea normalizes CRLF; compare against its displayed baseline.
+    const newline = data.newline || "\n";
+    const preview = node("section", "file-editor-preview"); preview.hidden = true;
+    const before = node("pre", "file-editor-version");
+    const after = node("pre", "file-editor-version");
+    const beforePanel = node("div", "file-editor-version-panel");
+    const afterPanel = node("div", "file-editor-version-panel");
+    beforePanel.append(node("h3", "", "Version actuelle"), before);
+    afterPanel.append(node("h3", "", "Modifications proposées"), after);
+    preview.append(beforePanel, afterPanel);
+
+    const footer = node("footer", "file-editor-actions");
+    const status = node("p", "file-editor-status", "Fichier prêt. Modifiez le texte puis affichez les changements."); status.setAttribute("role", "status");
+    const review = node("button", "secondary-action", "Aperçu des changements"); review.type = "button";
+    const save = node("button", "primary-action", "Enregistrer avec sauvegarde"); save.type = "button"; save.disabled = true;
+    footer.append(status, review, save);
+    shell.append(header, editor, preview, footer); dialog.append(shell); document.body.append(dialog);
+
+    const isDirty = () => editor.value !== originalContent;
+    const requestClose = () => {
+      if (isDirty() && !window.confirm("Abandonner les modifications non enregistrées ?")) return;
+      dialog.close();
+    };
+    close.addEventListener("click", requestClose);
+    dialog.addEventListener("cancel", (event) => { if (isDirty() && !window.confirm("Abandonner les modifications non enregistrées ?")) event.preventDefault(); });
+    dialog.addEventListener("close", () => dialog.remove());
+    editor.addEventListener("input", () => {
+      if (!preview.hidden) after.textContent = editor.value;
+      save.disabled = !isDirty() || preview.hidden;
+      status.textContent = isDirty() ? "Modifications en attente d’aperçu et d’enregistrement." : "Aucune modification.";
+    });
+    review.addEventListener("click", () => {
+      before.textContent = originalContent;
+      after.textContent = editor.value;
+      preview.hidden = false;
+      save.disabled = !isDirty();
+      status.textContent = isDirty() ? "Comparez les deux versions avant d’enregistrer." : "Aucune modification à enregistrer.";
+    });
+    save.addEventListener("click", async () => {
+      if (!isDirty()) return;
+      if (!window.confirm(`Enregistrer les changements de ${data.path} ? Vybelix créera une sauvegarde et refusera l’écriture si le fichier a changé depuis son ouverture.`)) return;
+      save.disabled = true; review.disabled = true;
+      status.textContent = "Enregistrement sécurisé en cours…";
+      try {
+        const content = editor.value.replace(/\n/g, newline);
+        const result = await postAction("/api/files/save", { path: data.path, content, expected_sha256: data.sha256, approved: true });
+        if (!result) throw new Error("Enregistrement refusé. Consultez le message affiché pour plus de détails.");
+        data.sha256 = result.sha256;
+        status.textContent = `Enregistré · sauvegarde ${result.rollback_id}`;
+        showNotice(`Fichier enregistré avec sauvegarde : ${data.path}`);
+        await refreshSnapshot();
+        dialog.close();
+      } catch (error) {
+        status.className = "file-editor-status error";
+        status.textContent = error.message || "Enregistrement refusé.";
+        save.disabled = false; review.disabled = false;
+      }
+    });
+    dialog.showModal();
+    editor.focus();
+  } catch (error) {
+    showNotice(error.message || "Lecture du fichier impossible.", true);
+  }
 }
 
 function renderChanges(snapshot, host) {
@@ -797,12 +941,25 @@ function renderChanges(snapshot, host) {
           const paths = diff.files.map((file) => file.path);
           if (!window.confirm(`Appliquer ${paths.length} fichier(s) ?\n${paths.join("\n")}\n\nL’Execution Manager créera d’abord une sauvegarde contrôlée. Aucun commit Git ne sera créé.`)) return;
           const result = await postAction("/api/apply", { task_id: proposal.task_id, approved: true, approved_paths: paths, approved_hashes: diff.approved_hashes });
-          if (result) { showNotice(`Modifications appliquées. Point de retour : ${result.rollback_id}`); await refreshSnapshot(); }
+          if (result) {
+            const automatic = result.auto_verification;
+            const verificationNotice = automatic
+              ? (automatic.exit_code === 0
+                ? ` Vérification automatique réussie : ${automatic.command}.`
+                : ` Vérification automatique à relancer : ${automatic.summary} La commande reste disponible dans Vérification.`)
+              : "";
+            showNotice(`Modifications appliquées. Point de retour : ${result.rollback_id}.${verificationNotice}`);
+            await refreshSnapshot();
+          }
         });
         actions.append(reject, apply); display.append(actions);
       } catch (error) { display.replaceChildren(node("p", "error-text", error.message)); }
     });
     card.append(view, display); host.append(card);
+    if (state.pendingProposalTaskId === proposal.task_id) {
+      state.pendingProposalTaskId = null;
+      requestAnimationFrame(() => view.click());
+    }
   });
 }
 
@@ -811,11 +968,15 @@ function renderVerification(snapshot, host) {
   if (!snapshot.allowed_commands.length) commands.append(node("p", "muted", "Aucune commande de vérification autorisée dans la configuration."));
   snapshot.allowed_commands.forEach((command) => commands.append(node("code", "command-line", command)));
   host.append(commands);
-  const runnable = snapshot.tasks_detail.filter((task) => task.status === "in_progress");
+  const runnable = snapshot.tasks_detail.filter((task) => task.applied && (!task.verification_attempted || task.status === "needs_review"));
   if (runnable.length && snapshot.allowed_commands.length) {
-    const run = section("Lancer une vérification contrôlée");
+    const run = section("Vérifier une tâche appliquée");
     const taskSelect = node("select", "select-control");
     runnable.forEach((task) => { const option = node("option", "", `${task.id} · ${task.title}`); option.value = task.id; taskSelect.append(option); });
+    if (state.pendingVerificationTaskId && runnable.some((task) => task.id === state.pendingVerificationTaskId)) {
+      taskSelect.value = state.pendingVerificationTaskId;
+    }
+    state.pendingVerificationTaskId = null;
     const commandSelect = node("select", "select-control");
     snapshot.allowed_commands.forEach((command) => { const option = node("option", "", command); option.value = command; commandSelect.append(option); });
     const execute = node("button", "primary-action", "Exécuter la commande autorisée"); execute.type = "button";
@@ -871,14 +1032,62 @@ function renderGit(snapshot, host) {
 }
 
 function renderHistory(snapshot, host) {
-  const events = section("Historique des opérations Vybelix");
   const history = [...(snapshot.history || [])].reverse();
-  if (!history.length) events.append(node("p", "muted", "Aucune opération Vybelix persistée."));
-  const labels = { plan_created: "Plan généré", plan_approved: "Plan approuvé", plan_rejected: "Plan refusé", proposal_created: "Proposition générée", proposal_rejected: "Proposition refusée", changes_applied: "Modifications appliquées", verification_completed: "Vérification exécutée" };
-  history.forEach((event) => {
+  const planSection = section("Plans");
+  const approvedPlans = history.filter((event) => event.type === "plan_approved");
+  if (!approvedPlans.length) planSection.append(node("p", "muted", "Aucun plan approuvé archivé."));
+  approvedPlans.forEach((event) => {
+    const currentPlan = snapshot.pending_plan;
+    const eventTaskIds = (event.tasks || []).map((task) => task.id).filter(Boolean).sort();
+    const currentTaskIds = (currentPlan?.tasks || []).map((task) => task.id).filter(Boolean).sort();
+    const sameCurrentPlan = currentPlan?.approved && eventTaskIds.length && eventTaskIds.join("|") === currentTaskIds.join("|");
+    const plan = event.plan?.tasks?.length ? event.plan : sameCurrentPlan ? currentPlan : {
+      request_summary: "Plan approuvé",
+      tasks: event.tasks || [],
+      affected_paths: [...new Set((event.tasks || []).flatMap((task) => task.affected_paths || []))],
+    };
+    const planTasks = plan.tasks || [];
+    const complete = planTasks.length > 0 && planTasks.every((plannedTask) => {
+      const task = (snapshot.tasks_detail || []).find((item) => item.id === plannedTask.id);
+      return task?.status === "done" && task.verification_attempted && task.verification_exit_code === 0;
+    });
+    const card = node("article", "detail-card");
+    const planTimestamp = complete ? (event.archived_at || event.timestamp) : event.timestamp;
+    card.append(node("strong", "", `${complete ? "Archivé · cycle terminé" : "Plan approuvé"} · ${planTimestamp || "date inconnue"}`));
+    card.append(node("p", "muted", plan.request_summary || "Plan approuvé"));
+    const toggle = node("button", "secondary-action", "Afficher le plan");
+    toggle.type = "button";
+    toggle.setAttribute("aria-expanded", "false");
+    const details = node("div", "completed-plan-details");
+    details.hidden = true;
+    details.append(node("p", "muted", `${planTasks.length} tâche(s) · chemins affectés : ${(plan.affected_paths || [...new Set(planTasks.flatMap((task) => task.affected_paths || []))]).length}`));
+    planTasks.forEach((task) => {
+      const item = node("article", "detail-card");
+      item.append(node("strong", "", `${task.id || "Tâche"} · ${task.title || "Sans titre"}`));
+      item.append(node("p", "muted", `${task.role || "Rôle non précisé"} · dépendances : ${(task.dependencies || []).join(", ") || "aucune"}`));
+      if (task.description) item.append(node("p", "", task.description));
+      (task.acceptance_criteria || []).forEach((criterion) => item.append(node("small", "muted", `✓ ${criterion}`)));
+      details.append(item);
+    });
+    toggle.addEventListener("click", () => {
+      details.hidden = !details.hidden;
+      toggle.textContent = details.hidden ? "Afficher le plan" : "Masquer le plan";
+      toggle.setAttribute("aria-expanded", String(!details.hidden));
+    });
+    card.append(toggle, details);
+    planSection.append(card);
+  });
+  host.append(planSection);
+
+  const events = section("Historique des opérations Vybelix");
+  const activityHistory = history.filter((event) => event.type !== "plan_approved");
+  if (!activityHistory.length) events.append(node("p", "muted", "Aucune autre opération Vybelix persistée."));
+  const labels = { plan_created: "Plan généré", plan_approved: "Plan approuvé", plan_rejected: "Plan refusé", proposal_created: "Proposition générée", proposal_rejected: "Proposition refusée", changes_applied: "Modifications appliquées", changes_undone: "Modifications annulées", verification_completed: "Vérification exécutée" };
+  activityHistory.forEach((event) => {
     const taskLabel = (event.task_ids || []).join(", ");
     const detail = event.files?.join(", ") || event.command || (event.routing || []).map((attempt) => `${attempt.provider}:${attempt.model} ${attempt.outcome}`).join(" → ") || taskLabel || event.rollback_id || "Opération enregistrée";
-    events.append(row(`${labels[event.type] || event.type}${taskLabel ? ` · ${taskLabel}` : ""}`, `${event.timestamp} · ${detail}`));
+    const label = event.undone ? (event.type === "verification_completed" ? "Vérification invalidée par l’annulation" : "Application annulée") : labels[event.type] || event.type;
+    events.append(row(`${label}${taskLabel ? ` · ${taskLabel}` : ""}`, `${event.timestamp} · ${detail}`));
   });
   host.append(events);
 }
@@ -980,9 +1189,8 @@ function drawProviders(host, entries) {
   const providerSpecs = [
     { id: "openai", label: "OpenAI / ChatGPT", env: "OPENAI_API_KEY", models: ["gpt-4o", "gpt-4o-mini", "o3-mini"] },
     { id: "anthropic", label: "Anthropic / Claude", env: "ANTHROPIC_API_KEY", models: ["claude-sonnet-4-20250514", "claude-3-7-sonnet-latest", "claude-3-5-haiku-latest"] },
-    { id: "gemini", label: "Google Gemini", env: "GEMINI_API_KEY", models: ["gemini-3.7-flash"] },
-    { id: "groq", label: "Groq", env: "Groq_API_KEY", models: ["moonshotai/kimi-k2-instruct"] },
-    { id: "mistral", label: "Mistral AI", env: "Mistral_API_KEY", models: ["mistral-medium-3.5-128b"] },
+    { id: "gemini", label: "Google Gemini", env: "GEMINI_API_KEY", models: ["gemini-3.5-flash-lite", "gemini-3.7-flash"] },
+    { id: "mistral", label: "Mistral AI", env: "Mistral_API_KEY", models: ["codestral-2508"] },
     { id: "openrouter", label: "OpenRouter", env: "Openrouter_API_KEY", models: ["openai/gpt-oss-20b", "anthropic/claude-sonnet-4", "google/gemini-2.5-flash"] },
     { id: "nvidia", label: "NVIDIA", env: "Nvidia_API_KEY", models: ["z-ai/glm-5.2"] },
   ];
@@ -1453,6 +1661,69 @@ document.querySelectorAll(".nav-item[data-view]").forEach((button) => {
 });
 byId("open-settings").addEventListener("click", () => showView("settings"));
 byId("open-tour").addEventListener("click", startProductTour);
+const projectPicker = byId("project-picker");
+const projectPathInput = byId("project-picker-path");
+const projectPickerError = byId("project-picker-error");
+function closeProjectPicker() {
+  projectPicker.hidden = true;
+  projectPickerError.hidden = true;
+  projectPickerError.textContent = "";
+}
+byId("open-project-picker").addEventListener("click", () => {
+  projectPathInput.value = "";
+  projectPickerError.hidden = true;
+  projectPicker.hidden = false;
+  projectPathInput.focus();
+});
+byId("close-project-picker").addEventListener("click", closeProjectPicker);
+byId("cancel-project-picker").addEventListener("click", closeProjectPicker);
+projectPicker.addEventListener("click", (event) => { if (event.target === projectPicker) closeProjectPicker(); });
+byId("browse-project").addEventListener("click", async () => {
+  const button = byId("browse-project");
+  button.disabled = true;
+  projectPickerError.hidden = true;
+  try {
+    const response = await fetch("/api/project/browse", {
+      method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: "{}", cache: "no-store"
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Impossible d’ouvrir le sélecteur de dossier.");
+    if (result.path) projectPathInput.value = result.path;
+  } catch (error) {
+    projectPickerError.textContent = error.message || "Le sélecteur de dossier est indisponible. Tu peux saisir le chemin manuellement.";
+    projectPickerError.hidden = false;
+  } finally { button.disabled = false; }
+});
+byId("confirm-project-picker").addEventListener("click", async () => {
+  const button = byId("confirm-project-picker");
+  const path = projectPathInput.value.trim();
+  if (!path) {
+    projectPickerError.textContent = "Choisis un dossier ou saisis son chemin.";
+    projectPickerError.hidden = false;
+    return;
+  }
+  button.disabled = true;
+  projectPickerError.hidden = true;
+  try {
+    const response = await fetch("/api/project/open", {
+      method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ path }), cache: "no-store"
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Impossible d’ouvrir ce projet.");
+    closeProjectPicker();
+    renderState(result);
+    showNotice(`Projet ouvert : ${result.project.name}`);
+  } catch (error) {
+    projectPickerError.textContent = error.message || "Impossible d’ouvrir ce projet.";
+    projectPickerError.hidden = false;
+  } finally { button.disabled = false; }
+});
+projectPathInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") byId("confirm-project-picker").click();
+  if (event.key === "Escape") closeProjectPicker();
+});
 
 function startProductTour() {
   state.tourIndex = 0;

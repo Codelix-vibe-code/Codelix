@@ -11,7 +11,6 @@ from ..config import VybelixConfig
 from .errors import AuthenticationError, ProviderError, RoutingError
 from .anthropic import AnthropicAdapter
 from .gemini import GeminiAdapter
-from .groq import GroqAdapter
 from .nvidia import NvidiaAdapter
 from .mistral import MistralAdapter
 from .openai import OpenAIAdapter
@@ -105,7 +104,7 @@ class ModelRouter:
                     candidate_options = {"max_tokens": 8192}
                     if "nemotron" in model.lower():
                         candidate_options["reasoning"] = {"effort": "low"}
-                elif provider_name in {"nvidia", "groq", "mistral"}:
+                elif provider_name in {"nvidia", "mistral"}:
                     candidate_options = {"max_tokens": 4096}
             attempts_allowed = 1 + self.transient_retries
             for attempt_number in range(1, attempts_allowed + 1):
@@ -171,7 +170,6 @@ def build_router(config: VybelixConfig) -> ModelRouter:
     compatible_adapters = {
         "openai": OpenAIAdapter,
         "nvidia": NvidiaAdapter,
-        "groq": GroqAdapter,
         "openrouter": OpenRouterAdapter,
         "mistral": MistralAdapter,
     }

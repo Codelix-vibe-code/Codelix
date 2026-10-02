@@ -1,3 +1,9 @@
+## 2026-10-01 — Éditeur de fichiers dans Files
+
+- Les lignes de fichiers ouvrent une fenêtre dédiée au centre de l’écran, sans panneau de lecture en bas de la page. La fenêtre permet lecture et édition.
+- Avant/après reste visible dans l’aperçu ; l’enregistrement demande confirmation, protège les fichiers secrets et les chemins interdits, vérifie que le fichier n’a pas changé, et passe par ExecutionManager pour créer un point de retour.
+- Les retours à la ligne Windows sont conservés. Syntaxe JavaScript et Python compilée vérifiées ; tests unitaires non relancés.
+
 # Résumés de session
 
 ## 2026-09-29 — Audit et fondations
@@ -174,3 +180,13 @@
 - Ajout d’une désapprobation sûre pour les plans approuvés non commencés.
 - Notifications du cockpit conservées 60 secondes, les nouvelles s’ajoutent sans effacer les anciennes et le texte long s’affiche sur plusieurs lignes.
 - Contrôles statiques passés; aucun appel modèle ou test de génération. Le Coder réel reste à confirmer.
+
+
+## 2026-10-02 — Validation Phase 2 et synchronisation des fournisseurs
+
+- Suite complète exécutée par l’utilisateur sous Python 3.12 : 102 tests réussis en 2,720 s; aucun appel API réel dans cette suite.
+- Générations réelles rapportées : NVIDIA `z-ai/glm-5.3-flash` a répondu `OK` en 142,797 s; le test API Keys NVIDIA a ensuite réussi en 161,719 s avec timeout 200 s. Mistral `codestral-2508` connecté en 2,859 s. OpenRouter confirmé fonctionnel par l’utilisateur. Gemini `gemini-3.5-flash-lite` (750 ms) et `gemini-3.7-flash` (19 125 ms) ont des connexions réussies rapportées; des erreurs 401/503 ont aussi été observées à d’autres moments.
+- Groq retiré des fournisseurs visibles, des exemples et des routes actives à la demande de l’utilisateur; la clé éventuelle du `.env` local n’a pas été supprimée.
+- Le test NVIDIA Paramètres → API Keys dispose d’un timeout de 200 s et n’impose plus de `max_tokens`; le fournisseur applique sa limite de sortie par défaut.
+- Cycle Planner → Coder → Tester → Vérifier confirmé pour C1, C2 et T1; lancement automatique du Vérifier après application d’une tâche Tester et relance manuelle disponibles.
+- Phase 2 marquée terminée pour les fournisseurs conservés. Aucun secret enregistré dans ce journal.

@@ -20,12 +20,32 @@
         <span class="separator">/</span>
         <span class="branch" id="branch-name">branche inconnue</span>
       </div>
+      <button class="project-switch-button" id="open-project-picker" type="button">Changer de projet</button>
       <div class="top-actions">
         <span class="connection" id="connection-state"><i></i><span>Connexion locale…</span></span>
         <button class="icon-button" id="open-tour" type="button" aria-label="Ouvrir le guide de Vybelix" title="Découvrir Vybelix">?</button>
         <button class="icon-button" id="open-settings" type="button" aria-label="Paramètres" title="Ouvrir les paramètres">⚙</button>
       </div>
     </header>
+
+    <div class="project-picker-overlay" id="project-picker" hidden>
+      <section class="project-picker-card" role="dialog" aria-modal="true" aria-labelledby="project-picker-title">
+        <button class="icon-button project-picker-close" id="close-project-picker" type="button" aria-label="Fermer">×</button>
+        <p class="eyebrow">ESPACE DE TRAVAIL</p>
+        <h2 id="project-picker-title">Ouvrir un projet Vybelix</h2>
+        <p class="muted">Le projet courant est chargé par défaut. Choisis un dossier Vybelix déjà initialisé pour basculer dessus.</p>
+        <label class="field-label" for="project-picker-path">Dossier du projet</label>
+        <div class="project-picker-controls">
+          <input id="project-picker-path" type="text" autocomplete="off" placeholder="C:\\Users\\…\\MonProjet" spellcheck="false">
+          <button class="secondary-button" id="browse-project" type="button">Parcourir…</button>
+        </div>
+        <p class="project-picker-error" id="project-picker-error" role="status" hidden></p>
+        <div class="project-picker-actions">
+          <button class="secondary-button" id="cancel-project-picker" type="button">Annuler</button>
+          <button class="primary-button" id="confirm-project-picker" type="button">Ouvrir le projet</button>
+        </div>
+      </section>
+    </div>
 
     <aside class="sidebar" aria-label="Navigation principale">
       <div class="nav-group">

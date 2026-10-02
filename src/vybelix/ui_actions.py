@@ -231,7 +231,7 @@ class UIActions:
     def test_api_call(self, provider_id: Any, model: Any, api_key: Any, session_token: Any) -> dict[str, Any]:
         """Send one small provider request using an unsaved key; never persist it."""
         if not isinstance(provider_id, str) or provider_id not in {
-            "openai", "anthropic", "gemini", "nvidia", "groq", "openrouter", "mistral",
+            "openai", "anthropic", "gemini", "nvidia", "openrouter", "mistral",
         }:
             raise UIActionError("Fournisseur non pris en charge pour le test.")
         if not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/:-]{0,159}", model.strip()):
@@ -252,7 +252,6 @@ class UIActions:
         try:
             from .providers.anthropic import AnthropicAdapter
             from .providers.gemini import GeminiAdapter
-            from .providers.groq import GroqAdapter
             from .providers.mistral import MistralAdapter
             from .providers.nvidia import NvidiaAdapter
             from .providers.openai import OpenAIAdapter
@@ -260,15 +259,23 @@ class UIActions:
 
             adapters = {
                 "openai": OpenAIAdapter, "anthropic": AnthropicAdapter, "gemini": GeminiAdapter,
-                "nvidia": NvidiaAdapter, "groq": GroqAdapter, "mistral": MistralAdapter,
+                "nvidia": NvidiaAdapter, "mistral": MistralAdapter,
                 "openrouter": OpenRouterAdapter,
             }
-            test_timeout = min(120 if provider_id == "nvidia" else 30, config.runtime.request_timeout_seconds)
+            # NVIDIA inference can take longer than the normal project timeout.
+            # Keep the API Keys connectivity test bounded, but give NVIDIA up to 200 s.
+            test_timeout = 200 if provider_id == "nvidia" else min(
+                120 if provider_id == "gemini" else 30,
+                config.runtime.request_timeout_seconds,
+            )
             adapter = adapters[provider_id](settings, api_key=api_key, timeout_seconds=test_timeout)
             if provider_id == "gemini":
                 options = {"max_output_tokens": 256, "temperature": 0.1}
             elif provider_id == "anthropic":
                 options = {"max_tokens": 256}
+            elif provider_id == "nvidia":
+                # Leave max_tokens unset; NVIDIA applies the model's own output limit.
+                options = {"temperature": 0.1, "stream": True}
             else:
                 options = {"max_tokens": 256, "temperature": 0.1, "stream": True}
             started = time.monotonic()
@@ -351,7 +358,7 @@ class UIActions:
     def update_model_routes(self, routes: Any) -> dict[str, Any]:
         """Persist user-selected provider/model candidates without touching secrets."""
         roles = ("planner", "coder", "tester")
-        supported = {"openai", "anthropic", "gemini", "nvidia", "groq", "openrouter", "mistral"}
+        supported = {"openai", "anthropic", "gemini", "nvidia", "openrouter", "mistral"}
         if not isinstance(routes, dict) or set(routes) != set(roles):
             raise UIActionError("Les routes doivent contenir Planner, Coder et Tester.")
         with self._project_lock:
@@ -467,7 +474,11 @@ class UIActions:
             progress["updated_at"] = _now()
             store.save(progress)
             task_ids = [task["id"] for task in plan["tasks"]]
-            self._record_event("plan_approved", tasks=[{"id": task["id"], "role": task["role"], "title": task["title"], "affected_paths": plan["affected_paths"]} for task in plan["tasks"]])
+            self._record_event(
+                "plan_approved",
+                tasks=[{"id": task["id"], "role": task["role"], "title": task["title"], "affected_paths": plan["affected_paths"]} for task in plan["tasks"]],
+                plan=plan,
+            )
             return {"approved": True, "task_ids": task_ids}
 
     def reject_plan(self) -> dict[str, Any]:
@@ -597,6 +608,16 @@ class UIActions:
             if task is None or task["status"] != "needs_review":
                 raise UIActionError("La tâche doit être en revue avec une proposition active avant son application.")
             config = load_config(project_config_path(self.root))
+            planned_role = None
+            try:
+                plan = validate_planner_output(
+                    json.loads(self._cache_path("plan.json").read_text(encoding="utf-8")),
+                    expected_project_id=progress["project_id"],
+                )
+                planned_task = next((item for item in plan["tasks"] if item["id"] == task_id), None)
+                planned_role = planned_task.get("role") if planned_task else None
+            except (OSError, json.JSONDecodeError, ValueError):
+                pass
             proposal = self._load_proposal(task_id)
             paths = [item["path"] for item in proposal["files"]]
             approved_hashes = payload.get("approved_hashes")
@@ -614,13 +635,66 @@ class UIActions:
             if task is None:
                 raise UIActionError("Tâche disparue après l’application ; vérifiez le workspace.")
             task["files_modified"] = list(dict.fromkeys([*task["files_modified"], *result.written]))
-            task["status"] = "in_progress"
-            task["last_result"] = "Proposition appliquée après approbation depuis l’interface."
+            task["status"] = "done"
+            task["last_result"] = "Tâche terminée après approbation et application depuis l’interface. La vérification déterministe reste disponible séparément."
             task["verifications"].append({"command": "vybelix apply", "exit_code": 0, "summary": f"Fichiers appliqués : {', '.join(result.written)}", "errors": [], "execution_id": result.backup_id, "acceptance_criteria": []})
             progress["updated_at"] = _now()
             store.save(progress)
+            self._proposal_path(task_id).unlink(missing_ok=True)
             self._record_event("changes_applied", task_ids=[task_id], files=list(result.written), rollback_id=result.backup_id)
-            return {"applied": True, "files": list(result.written), "rollback_id": result.backup_id, "preview": list(preview)}
+            auto_verification = None
+            if planned_role == "tester":
+                command = config.allowed_commands[0] if config.allowed_commands else None
+                if command is None:
+                    auto_verification = {
+                        "command": None,
+                        "exit_code": None,
+                        "summary": "Aucune commande autorisée à lancer automatiquement ; la vérification reste disponible manuellement après configuration.",
+                        "errors": [],
+                        "fallback_available": False,
+                    }
+                else:
+                    started = time.monotonic()
+                    try:
+                        verification_result = Verifier(
+                            self.root,
+                            config.allowed_commands,
+                            timeout_seconds=config.runtime.request_timeout_seconds,
+                        ).run(command, acceptance_criteria=task["acceptance_criteria"])
+                        auto_verification = {**verification_result.as_dict(), "fallback_available": True}
+                    except Exception as exc:
+                        auto_verification = {
+                            "command": command,
+                            "exit_code": None,
+                            "summary": "Le lancement automatique du Verifier a été interrompu ; relance possible dans Vérification.",
+                            "errors": [type(exc).__name__],
+                            "execution_id": uuid.uuid4().hex,
+                            "duration_seconds": round(time.monotonic() - started, 3),
+                            "acceptance_criteria": list(task["acceptance_criteria"]),
+                            "fallback_available": True,
+                        }
+                    task["verifications"].append({key: value for key, value in auto_verification.items() if key != "fallback_available"})
+                    task["last_result"] = str(auto_verification["summary"])[:500]
+                    task["status"] = "done" if auto_verification["exit_code"] == 0 else "needs_review"
+                    progress["updated_at"] = _now()
+                    store.save(progress)
+                    self._record_event(
+                        "verification_completed",
+                        task_ids=[task_id],
+                        command=command,
+                        exit_code=auto_verification["exit_code"],
+                        passed=auto_verification["exit_code"] == 0,
+                        rollback_id=result.backup_id,
+                        duration_seconds=auto_verification.get("duration_seconds"),
+                        automatic=True,
+                    )
+            return {
+                "applied": True,
+                "files": list(result.written),
+                "rollback_id": result.backup_id,
+                "preview": list(preview),
+                "auto_verification": auto_verification,
+            }
 
     def reject_proposal(self, task_id: str) -> dict[str, Any]:
         task_id = _valid_task_id(task_id)
@@ -650,7 +724,8 @@ class UIActions:
             task = next((item for item in progress["tasks"] if item["id"] == task_id), None)
             if task is None:
                 raise UIActionError("Tâche inconnue.")
-            if task["status"] != "in_progress":
+            was_applied = any(isinstance(item, dict) and item.get("command") == "vybelix apply" for item in task["verifications"])
+            if not was_applied or task["status"] not in {"in_progress", "needs_review", "done"}:
                 raise UIActionError("La vérification est disponible après l’application approuvée d’une proposition.")
             result = Verifier(self.root, config.allowed_commands, timeout_seconds=config.runtime.request_timeout_seconds).run(command, acceptance_criteria=task["acceptance_criteria"])
             task["verifications"].append(result.as_dict())
@@ -658,7 +733,8 @@ class UIActions:
             task["status"] = "done" if result.passed else "needs_review"
             progress["updated_at"] = _now()
             store.save(progress)
-            self._record_event("verification_completed", task_ids=[task_id], command=result.command, exit_code=result.exit_code, duration_seconds=result.duration_seconds)
+            latest_apply = next((item for item in reversed(task["verifications"]) if isinstance(item, dict) and item.get("command") == "vybelix apply"), None)
+            self._record_event("verification_completed", task_ids=[task_id], command=result.command, exit_code=result.exit_code, passed=result.passed, rollback_id=latest_apply.get("execution_id") if latest_apply else None, duration_seconds=result.duration_seconds)
             return result.as_dict()
 
     def history(self) -> list[dict[str, Any]]:
@@ -820,10 +896,42 @@ class UIActions:
         if path.stat().st_size > 204_800:
             raise UIActionError("Fichier trop volumineux pour l’aperçu UI (limite 200 Ko).")
         try:
-            content = path.read_text(encoding="utf-8")
+            raw = path.read_bytes()
+            content = raw.decode("utf-8")
         except (OSError, UnicodeError) as exc:
             raise UIActionError("Aperçu indisponible : le fichier n’est pas lisible en UTF-8.") from exc
-        return {"path": relative, "content": content}
+        return {"path": relative, "content": content, "sha256": hashlib.sha256(raw).hexdigest(), "newline": "\r\n" if b"\r\n" in raw else "\n"}
+
+    def save_project_file(self, relative: Any, content: Any, expected_sha256: Any, approved: Any) -> dict[str, Any]:
+        if not isinstance(relative, str) or not isinstance(content, str):
+            raise UIActionError("Fichier ou contenu invalide.")
+        if approved is not True:
+            raise UIActionError("L’enregistrement nécessite une approbation explicite.")
+        if not isinstance(expected_sha256, str) or not re.fullmatch(r"[a-f0-9]{64}", expected_sha256):
+            raise UIActionError("Empreinte du fichier invalide ; rouvrez le fichier avant de réessayer.")
+        with self._project_lock:
+            current = self.project_file(relative)
+            if not hmac.compare_digest(current["sha256"], expected_sha256):
+                raise UIActionError("Le fichier a changé depuis son ouverture. Rouvrez-le pour éviter d’écraser ses changements.")
+            config = load_config(project_config_path(self.root))
+            manager = ExecutionManager(self.root, max_file_bytes=config.runtime.max_file_bytes)
+            snapshots = manager.inspect([relative])
+            if snapshots[relative].sha256 != expected_sha256:
+                raise UIActionError("Le fichier a changé depuis son ouverture. Rouvrez-le pour éviter d’écraser ses changements.")
+            proposal = {
+                "schema_version": "1.0", "task_id": "manual-file-edit",
+                "summary": "Modification manuelle approuvée depuis l’explorateur Vybelix",
+                "files": [{"path": relative, "operation": "write", "content": content}],
+                "notes": [], "verification_hints": [],
+            }
+            manager.preview(proposal, expected_task_id="manual-file-edit", snapshots=snapshots)
+            result = manager.apply(proposal, expected_task_id="manual-file-edit", snapshots=snapshots, approved=True)
+            updated = self.project_file(relative)
+            try:
+                self._record_event("manual_file_saved", files=[relative], rollback_id=result.backup_id)
+            except (OSError, ValueError, UIActionError):
+                pass
+            return {"saved": True, "path": relative, "sha256": updated["sha256"], "rollback_id": result.backup_id}
 
     def _load_proposal(self, task_id: str) -> dict[str, Any]:
         try:

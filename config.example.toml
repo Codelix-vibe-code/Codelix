@@ -27,10 +27,6 @@ api_key_env = "ANTHROPIC_API_KEY"
 base_url = "https://integrate.api.nvidia.com/v1"
 api_key_env = "Nvidia_API_KEY"
 
-[providers.groq]
-base_url = "https://api.groq.com/openai/v1"
-api_key_env = "Groq_API_KEY"
-
 [providers.openrouter]
 base_url = "https://openrouter.ai/api/v1"
 api_key_env = "Openrouter_API_KEY"
@@ -41,10 +37,11 @@ api_key_env = "Mistral_API_KEY"
 
 [models]
 # Ordered candidates; GPT-OSS is the account-tested NVIDIA fallback.
-planner = ["gemini:gemini-3.8-flash", "nvidia:openai/gpt-oss-20b", "nvidia:z-ai/glm-5.3"]
+planner = ["gemini:gemini-3.5-flash-lite", "nvidia:openai/gpt-oss-20b", "nvidia:z-ai/glm-5.3"]
 coder = ["nvidia:openai/gpt-oss-20b", "nvidia:z-ai/glm-5.3"]
-tester = ["nvidia:openai/gpt-oss-20b", "gemini:gemini-3.7-flash", "groq:openai/gpt-oss-20b"]
+tester = ["nvidia:openai/gpt-oss-20b", "gemini:gemini-3.7-flash"]
 
 [verifier]
-# Les commandes restent désactivées tant qu'elles n'ont pas été approuvées.
+# La première commande autorisée se lance après l’application d’une proposition Tester.
+# Toutes les commandes de cette liste restent disponibles pour une relance manuelle.
 allowed_commands = []

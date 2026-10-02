@@ -6,7 +6,7 @@ ont priorité. Le `.env` est ignoré par Git ; ne le partagez pas.
 
 ## Fournisseurs compatibles Chat Completions
 
-OpenAI/ChatGPT, NVIDIA Build, Groq, OpenRouter et Mistral utilisent le format
+OpenAI/ChatGPT, NVIDIA Build, OpenRouter et Mistral utilisent le format
 Chat Completions compatible OpenAI. Vybelix construit
 `POST {base_url}/chat/completions`, avec authentification Bearer. Les réponses
 SSE sont lues par l'adaptateur ; le mode JSON non-streamé reste disponible via
@@ -24,7 +24,6 @@ Endpoints configurés par défaut :
 - OpenAI/ChatGPT : `https://api.openai.com/v1/chat/completions` ;
 - Claude (Anthropic) : `https://api.anthropic.com/v1/messages` ;
 - NVIDIA : `https://integrate.api.nvidia.com/v1/chat/completions` ;
-- Groq : `https://api.groq.com/openai/v1/chat/completions` ;
 - OpenRouter : `https://openrouter.ai/api/v1/chat/completions` ;
 - Mistral : `https://api.mistral.ai/v1/chat/completions`.
 
@@ -34,13 +33,11 @@ est refusée, limitée ou indisponible.
 
 - [Référence NVIDIA LLM APIs](https://docs.api.nvidia.com/nim/reference/llm-apis)
 - [Référence NVIDIA chat completion](https://docs.api.nvidia.com/nim/reference/meta-llama2-70b-infer)
-- [Référence Groq Chat Completions](https://console.groq.com/docs/api-reference)
-- [Vue d'ensemble Groq et compatibilité](https://console.groq.com/docs/overview)
 - [Référence OpenAI Chat Completions](https://platform.openai.com/docs/api-reference/chat/create)
 - [Référence Anthropic Messages](https://docs.anthropic.com/en/api/messages)
 
 Dans `.env`, les noms de variables configurés pour ce projet sont
-`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `Nvidia_API_KEY`, `Groq_API_KEY`,
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `Nvidia_API_KEY`,
 `Openrouter_API_KEY` et `Mistral_API_KEY`. Les blocs fournisseurs sont présents
 dans `vybelix.toml` et `config.example.toml`. L’interface **Paramètres → API
 KEYS** peut enregistrer les clés dans le `.env` local ignoré par Git. Ajoutez
@@ -49,7 +46,7 @@ vous-même les candidats au rôle voulu dans
 modèle par défaut n’est sélectionné automatiquement.
 
 Les noms des fournisseurs dans les candidats sont `openai`, `anthropic`,
-`nvidia`, `openrouter`, `mistral` et `groq`. La forme est par exemple
+`nvidia`, `openrouter` et `mistral`. La forme est par exemple
 `openai:identifiant-du-modèle` ou `anthropic:identifiant-du-modèle` ; les
 identifiants exacts dépendent de l’accès et du catalogue du compte.
 

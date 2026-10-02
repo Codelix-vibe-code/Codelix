@@ -25,7 +25,7 @@ python -m unittest discover -s tests -v
 
 La suite est également compatible avec `pytest` lorsqu'il est installé.
 
-Les adaptateurs Gemini, NVIDIA Build et Groq sont décrits dans
+Les adaptateurs Gemini, NVIDIA Build, OpenRouter et Mistral sont décrits dans
 [`docs/providers.md`](docs/providers.md). Aucun modèle n'est activé par défaut ;
 les identifiants et l'ordre des candidats sont choisis dans `vybelix.toml`.
 
@@ -74,8 +74,9 @@ projet. Planner, Coder et Tester ne sont appelés qu’après une action explici
 Un plan doit être approuvé avant l’ajout des tâches ; les propositions sont
 présentées en diff et chaque application demande une approbation distincte. La vue Tâches permet aussi de remettre en attente une tâche bloquée ou interrompue après confirmation; elle ne démarre pas automatiquement le Coder.
 L’onglet Verification n’exécute que les commandes de la liste autorisée, après
-confirmation. Files masque les secrets et n’ouvre que des fichiers texte UTF-8
-limités en taille. Git est consultatif : l’interface ne crée pas de commit ni de
+confirmation. Files masque les secrets et ouvre les fichiers texte UTF-8 de moins de 200 Ko
+dans une fenêtre dédiée. Le contenu peut être modifié puis prévisualisé et
+enregistré après confirmation ; chaque écriture crée une sauvegarde locale. Git est consultatif : l’interface ne crée pas de commit ni de
 branche. Aucune clé API n’est affichée. Arrêtez le serveur avec `Ctrl+C`.
 
 ## Reprise du projet

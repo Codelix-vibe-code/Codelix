@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import threading
 import tomllib
 import webbrowser
 from collections import Counter
@@ -121,6 +122,13 @@ def _proposal_snapshot(root: Path) -> list[dict[str, Any]]:
     directory = project_cache_root(root) / "proposals"
     if not directory.is_dir() or directory.is_symlink():
         return []
+    try:
+        reviewable_task_ids = {
+            task["id"] for task in ProgressStore(root / "docs" / "progress" / "tasks.json").load()["tasks"]
+            if task["status"] == "needs_review"
+        }
+    except (OSError, ValueError, KeyError, TypeError):
+        return []
     proposals = []
     for file in sorted(directory.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)[:20]:
         if file.is_symlink() or not file.resolve().is_relative_to(root):
@@ -131,11 +139,14 @@ def _proposal_snapshot(root: Path) -> list[dict[str, Any]]:
             continue
         if not isinstance(value, dict) or not isinstance(value.get("files"), list):
             continue
+        task_id = value.get("task_id") if isinstance(value.get("task_id"), str) else file.stem
+        if task_id not in reviewable_task_ids:
+            continue
         entries = []
         for item in value["files"]:
             if isinstance(item, dict) and isinstance(item.get("path"), str):
                 entries.append({"path": item["path"], "operation": item.get("operation") if isinstance(item.get("operation"), str) else "unknown"})
-        proposals.append({"task_id": value.get("task_id") if isinstance(value.get("task_id"), str) else file.stem, "files": entries})
+        proposals.append({"task_id": task_id, "files": entries})
     return proposals
 
 
@@ -164,41 +175,52 @@ def _agent_progress(tasks: list[dict[str, Any]], operations: list[dict[str, Any]
     by_id = {task["id"]: task for task in tasks}
     proposal_ids = {proposal["task_id"] for proposal in proposals}
     active_ops = [operation for operation in operations if operation["status"] in {"queued", "running"}]
-    latest_plan = next((event for event in reversed(history) if event["type"] in {"plan_created", "plan_approved", "plan_rejected"}), None)
-    applied_ids = {task_id for event in history if event["type"] == "changes_applied" for task_id in event.get("task_ids", [])}
-    verified_ids = {task_id for event in history if event["type"] == "verification_completed" for task_id in event.get("task_ids", [])}
 
     result = []
     for role, label, subtitle in (("planner", "Planner", "Analyse et planification"), ("coder", "Coder", "Propositions de code"), ("tester", "Tester", "Préparation des tests"), ("verifier", "Verifier", "Vérification déterministe")):
         role_tasks = [task for task in tasks if task.get("role") == role]
         if role in {"coder", "tester"}:
             complete_ids = {task["id"] for task in role_tasks if task["status"] == "done"}
+            awaiting_verification = [task for task in role_tasks if task.get("applied") and not task.get("verification_attempted")]
+            failed_verification = [task for task in role_tasks if task.get("applied") and task["status"] == "needs_review" and task.get("verification_attempted") and task.get("verification_exit_code") != 0]
             total = len(role_tasks)
             completed = len(complete_ids)
             progress = round(completed * 100 / total) if total else 0
             active = next((op for op in active_ops if op["kind"] == "code" and by_id.get(op.get("task_id"), {}).get("role") == role), None)
             waiting = sum(task["id"] in proposal_ids for task in role_tasks)
-            status = "En cours" if active else "Proposition à examiner" if waiting else "Terminée" if total and completed == total else "Prêt" if total else "Aucune tâche assignée"
+            status = "En cours" if active else "Proposition à examiner" if waiting else "Échec de vérification · reprise requise" if failed_verification else "Terminée" if total and completed == total else "Vérification disponible · non bloquante" if awaiting_verification else "À reprendre" if any(task["status"] == "needs_review" for task in role_tasks) else "Prêt" if total else "Aucune tâche assignée"
             detail = f"{completed}/{total} tâche(s) terminée(s)" if total else "Aucune tâche affectée"
-            current = by_id.get(active.get("task_id"), {}).get("title") if active else None
+            if awaiting_verification:
+                detail = f"{completed}/{total} tâche(s) terminée(s) · vérification non bloquante en attente ({len(awaiting_verification)})"
+            elif failed_verification:
+                detail = f"{completed}/{total} tâche(s) terminée(s) · {len(failed_verification)} vérification(s) échouée(s)"
+            current = by_id.get(active.get("task_id"), {}).get("title") if active else (awaiting_verification[0]["title"] if awaiting_verification else failed_verification[0]["title"] if failed_verification else None)
         elif role == "planner":
             active = next((op for op in active_ops if op["kind"] == "plan"), None)
             approved = bool(pending_plan and pending_plan.get("approved"))
             has_plan = pending_plan is not None
             progress = 0 if active else 100 if has_plan else 0
-            status = "En cours" if active else "Plan approuvé" if approved else "Plan à approuver" if has_plan else "En attente"
+            status = "En cours" if active else "Plan approuvé" if approved else "Plan à examiner" if has_plan else "En attente"
             total = len(pending_plan["tasks"]) if pending_plan else 0
             detail = f"Plan · {total} tâche(s)" if has_plan else "Aucun plan enregistré"
             current = "Planification" if active else None
         else:
             active = next((op for op in active_ops if op["kind"] == "verify"), None)
-            total = len(applied_ids)
-            completed = len(verified_ids & applied_ids)
+            applied_tasks = [task for task in tasks if task.get("applied")]
+            total = len(applied_tasks)
+            completed = sum(task["status"] == "done" and task.get("verification_exit_code") == 0 for task in applied_tasks)
+            awaiting = [task for task in applied_tasks if not task.get("verification_attempted") or task["status"] == "needs_review"]
             progress = round(completed * 100 / total) if total else 0
-            status = "En cours" if active else "Terminée" if total and completed == total else "Prêt" if total else "Aucune vérification en attente"
+            failed = [task for task in awaiting if task.get("verification_attempted") and task.get("verification_exit_code") != 0]
+            status = "En cours" if active else "Échec à reprendre" if failed else "Vérification à lancer" if awaiting else "Terminée" if total and completed == total else "Prêt" if total else "Aucune vérification en attente"
             detail = f"{completed}/{total} tâche(s) vérifiée(s)" if total else "Aucune tâche appliquée à vérifier"
-            current = by_id.get(active.get("task_id"), {}).get("title") if active else None
-        result.append({"role": role, "name": label, "subtitle": subtitle, "status": status, "progress": progress, "detail": detail, "current_task": current})
+            if awaiting:
+                detail += f" · {len(awaiting)} en attente" + (f", {len(failed)} en échec" if failed else "")
+            current = by_id.get(active.get("task_id"), {}).get("title") if active else (awaiting[0]["title"] if awaiting else None)
+        verification_task_id = current_task_id = active.get("task_id") if active else None
+        if role == "verifier" and not verification_task_id:
+            verification_task_id = next((task["id"] for task in awaiting), None)
+        result.append({"role": role, "name": label, "subtitle": subtitle, "status": status, "progress": progress, "detail": detail, "current_task": current, "task_id": verification_task_id if role == "verifier" else current_task_id})
     return result
 
 
@@ -239,12 +261,19 @@ def project_snapshot(project: Path, actions: UIActions | None = None) -> dict[st
     task_details = []
     for task in tasks:
         planned = plan_tasks.get(task["id"], {})
+        verification_records = [item for item in task["verifications"] if isinstance(item, dict) and item.get("command") != "vybelix apply"]
+        last_verification = verification_records[-1] if verification_records else None
+        is_applied = any(isinstance(item, dict) and item.get("command") == "vybelix apply" for item in task["verifications"])
         task_details.append({
             "id": task["id"], "title": task["title"], "status": task["status"],
             "dependencies": task["dependencies"], "acceptance_criteria": task["acceptance_criteria"],
             "files_modified": task["files_modified"], "attempts": task["attempts"],
             "role": planned.get("role"), "description": planned.get("description", ""),
             "affected_paths": planned.get("affected_paths", []),
+            "applied": is_applied,
+            "verification_exit_code": last_verification.get("exit_code") if last_verification else None,
+            "verification_attempted": last_verification is not None,
+            "verification_summary": last_verification.get("summary") if last_verification else None,
         })
     return {
         "project": {"name": root.name, "id": progress["project_id"], "file_count": _project_file_count(root)},
@@ -260,8 +289,8 @@ def project_snapshot(project: Path, actions: UIActions | None = None) -> dict[st
         "verification_history": [
             {"task_id": task["id"], "records": [
                 {key: item.get(key) for key in ("command", "exit_code", "summary", "execution_id", "duration_seconds", "acceptance_criteria") if key in item}
-                for item in task["verifications"][-10:] if isinstance(item, dict)
-            ]} for task in tasks if task["verifications"]
+                for item in [record for record in task["verifications"] if isinstance(record, dict) and record.get("command") != "vybelix apply"][-10:]
+            ]} for task in tasks if any(isinstance(record, dict) and record.get("command") != "vybelix apply" for record in task["verifications"])
         ],
         "allowed_commands": config.get("verifier", {}).get("allowed_commands", []),
         "runtime": config.get("runtime", {}),
@@ -287,12 +316,17 @@ def _safe_ui_error(exc: Exception) -> str:
 
 
 def make_handler(project: Path, static_root: Path):
-    actions = UIActions(project)
+    project_state = {"root": project.resolve(strict=True), "actions": UIActions(project)}
+    project_lock = threading.RLock()
 
     class VybelixUIHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
-            self.actions = actions
             super().__init__(*args, directory=str(static_root), **kwargs)
+
+        def _bind_project(self):
+            with project_lock:
+                self.project = project_state["root"]
+                self.actions = project_state["actions"]
 
         def end_headers(self):
             self.send_header("Cache-Control", "no-store")
@@ -314,6 +348,7 @@ def make_handler(project: Path, static_root: Path):
             self.wfile.write(payload)
 
         def do_GET(self):
+            self._bind_project()
             path = urlsplit(self.path).path
             if path == "/api/context":
                 try:
@@ -338,7 +373,7 @@ def make_handler(project: Path, static_root: Path):
                 return
             if path == "/api/state":
                 try:
-                    payload = json.dumps(project_snapshot(project, self.actions), ensure_ascii=False).encode("utf-8")
+                    payload = json.dumps(project_snapshot(self.project, self.actions), ensure_ascii=False).encode("utf-8")
                 except (OSError, ValueError, KeyError, tomllib.TOMLDecodeError):
                     self.send_error(503, "État local Vybelix indisponible.")
                     return
@@ -372,6 +407,7 @@ def make_handler(project: Path, static_root: Path):
             super().do_GET()
 
         def do_POST(self):
+            self._bind_project()
             if self.client_address[0] not in {"127.0.0.1", "::1"}:
                 self._json(403, {"error": "Accès local uniquement."})
                 return
@@ -403,7 +439,44 @@ def make_handler(project: Path, static_root: Path):
                 self.end_headers()
                 return
             try:
-                if path == "/api/skills/create":
+                if path == "/api/project/browse":
+                    import tkinter as tk
+                    from tkinter import filedialog
+                    window = tk.Tk()
+                    window.withdraw()
+                    window.attributes("-topmost", True)
+                    try:
+                        selected = filedialog.askdirectory(
+                            title="Choisir un projet Vybelix",
+                            initialdir=str(self.project),
+                            mustexist=True,
+                        )
+                    finally:
+                        window.destroy()
+                    self._json(200, {"path": selected or ""})
+                elif path == "/api/project/open":
+                    raw_path = payload.get("path")
+                    if not isinstance(raw_path, str) or not raw_path.strip() or len(raw_path) > 2048:
+                        raise ValueError("Sélectionne le chemin d’un dossier Vybelix valide.")
+                    candidate = Path(raw_path.strip()).expanduser()
+                    if candidate.is_symlink() or bool(getattr(candidate, "is_junction", lambda: False)()):
+                        raise ValueError("Les liens symboliques ne peuvent pas être ouverts comme projet.")
+                    candidate = candidate.resolve(strict=True)
+                    if not candidate.is_dir():
+                        raise ValueError("Le chemin sélectionné n’est pas un dossier.")
+                    config_path = project_config_path(candidate)
+                    progress_path = candidate / "docs" / "progress" / "tasks.json"
+                    if not config_path.is_file() or not progress_path.is_file():
+                        raise ValueError("Ce dossier n’est pas un projet Vybelix initialisé (configuration ou progression absente).")
+                    next_actions = UIActions(candidate)
+                    next_snapshot = project_snapshot(candidate, next_actions)
+                    with project_lock:
+                        project_state["root"] = candidate
+                        project_state["actions"] = next_actions
+                    self.project = candidate
+                    self.actions = next_actions
+                    self._json(200, next_snapshot)
+                elif path == "/api/skills/create":
                     self._json(201, self.actions.create_skill_draft(payload))
                 elif path == "/api/skills/validate":
                     self._json(200, self.actions.validate_skill(payload.get("source")))
@@ -449,6 +522,8 @@ def make_handler(project: Path, static_root: Path):
                     self._json(200, self.actions.update_user_level(payload.get("level")))
                 elif path == "/api/context":
                     self._json(200, self.actions.save_project_context(payload))
+                elif path == "/api/files/save":
+                    self._json(200, self.actions.save_project_file(payload.get("path"), payload.get("content"), payload.get("expected_sha256"), payload.get("approved")))
                 elif path == "/api/resume":
                     self._json(200, self.actions.resume_task(payload.get("task_id"), payload.get("approved")))
                 elif path == "/api/plan":

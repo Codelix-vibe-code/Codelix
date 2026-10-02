@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0",
   "project_id": "vybelix",
-  "updated_at": "2026-10-01T18:24:50Z",
+  "updated_at": "2026-10-02T15:57:14Z",
   "tasks": [
     {
       "id": "phase-0-audit",
@@ -72,12 +72,12 @@
     {
       "id": "phase-2-providers-routing",
       "title": "Fournisseurs IA et routage",
-      "status": "needs_review",
+      "status": "done",
       "dependencies": [
         "phase-1-foundations"
       ],
       "acceptance_criteria": [
-        "Adaptateurs Gemini, NVIDIA et Groq conformes à leurs documentations officielles",
+        "Adaptateurs Gemini et NVIDIA conformes aux contrats pris en charge; Groq retiré des fournisseurs actifs par décision utilisateur",
         "Chargement local du fichier .env sans écrasement des variables du processus",
         "Fallback et erreurs bornés testés",
         "Appel réel vérifié avec modèle et quota autorisés"
@@ -384,7 +384,7 @@
           ]
         }
       ],
-      "last_result": "Routeur corrigé : un HTTP 401 saute maintenant au candidat explicitement configuré suivant, sans retry de la clé refusée. Les prompts Planner/Coder explicitent les champs exacts et la chaîne schema_version 1.0. 78 tests réussis. Appels minimaux des modèles actifs : NVIDIA GPT-OSS répond OK; Gemini 3.8/3.7 renvoient 401; Groq renvoie 403; NVIDIA GLM expire à 30 s. Smoke Planner avec les routes réelles et délais config 60 s : Gemini 401 puis timeout NVIDIA GPT-OSS et GLM; une réponse antérieure du GPT-OSS avait un ancien schéma rejeté par le validateur. Aucune étape Coder/Verifier complète atteinte; aucun fichier de projet généré appliqué ou exécuté. Phase reste needs_review en attente d’accès API et d’une réponse Planner conforme. L’approbation automatique a rejeté l’application/exécution d’un code généré avant examen humain du contenu exact. Additional requested tests: OpenRouter generation ended in a NetworkError without HTTP status after 42.1 s; Mistral returned HTTP 429. Both remain unavailable in current tests."
+      "last_result": "Phase validée pour les fournisseurs conservés. L’utilisateur a exécuté la suite complète Python 3.12 : 102 tests réussis en 2,720 s. Générations réelles rapportées : NVIDIA z-ai/glm-5.3-flash a répondu OK directement en 142,797 s puis le test API Keys a réussi en 161,719 s avec timeout 200 s; Mistral codestral-2508 connecté en 2,859 s; OpenRouter confirmé fonctionnel par l’utilisateur. Gemini gemini-3.5-flash-lite (750 ms) et gemini-3.7-flash (19 125 ms) ont eu des connexions réussies rapportées, avec des erreurs intermittentes historiques 401/503. Groq retiré de l’interface, des routes par défaut et du routeur par décision utilisateur; la clé locale n’a pas été supprimée. Cycle Planner → Coder → Tester → Vérifier confirmé par l’utilisateur pour C1, C2 et T1; lancement automatique du Vérifier après application Tester et relance manuelle disponibles. Aucun secret consigné."
     },
     {
       "id": "phase-3-controlled-execution",
@@ -1236,36 +1236,6 @@
       "last_result": "Contexte compact disponible via CLI et Paramètres du cockpit, enregistré localement et validé; reprise explicite des tâches bloquées/interrompues intégrée à la CLI et à la vue Tâches. Aucun agent n’est démarré automatiquement. 92 tests passent. Phase 2 reste needs_review et n’a pas été modifiée dans cette étape."
     },
     {
-      "id": "task_1",
-      "title": "Implémenter la commande `hello` dans src/vybelix/cli.py",
-      "status": "todo",
-      "dependencies": [],
-      "acceptance_criteria": [
-        "La fonction `hello` est définie et enregistrée sous la commande `hello` dans le groupe de commandes Click.",
-        "L’exécution de la commande `vybelix hello` produit la sortie \"Hello Vybelix\\n\" sans rien d’autre."
-      ],
-      "attempts": 0,
-      "files_modified": [],
-      "verifications": [],
-      "last_result": "Plan approuvé depuis l’interface."
-    },
-    {
-      "id": "task_2",
-      "title": "Écrire un test unitaire dans tests/test_cli.py",
-      "status": "todo",
-      "dependencies": [
-        "task_1"
-      ],
-      "acceptance_criteria": [
-        "Un test nommé `test_cli_hello` est présent dans `tests/test_cli.py`.",
-        "Le test passe avec `pytest -q` en vérifiant la sortie et le code de retour."
-      ],
-      "attempts": 0,
-      "files_modified": [],
-      "verifications": [],
-      "last_result": "Plan approuvé depuis l’interface."
-    },
-    {
       "id": "phase-7-workflow-feedback-ui",
       "title": "Stabiliser les rôles Planner/Coder/Tester et les diagnostics UI",
       "status": "done",
@@ -1318,6 +1288,135 @@
         }
       ],
       "last_result": "Consignes Planner renforcées pour générer des tâches actionnables Coder/Tester; validateurs imposent la cohérence rôle/type aux nouveaux plans. Prompts Coder et Tester séparés, prompt Coder explicite sur JSON brut strict. Désapprobation sûre limitée aux tâches non commencées sans dépendants externes. Notifications conservées 60 s, empilées et multilignes. Aucun appel de génération ni test de modèle; suite complète non relancée."
+    },
+    {
+      "id": "C1",
+      "title": "Create vybelix_hello_world.py",
+      "status": "done",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "File 'vybelix_hello_world.py' exists in the project root",
+        "File contains a single executable statement: `print('Hello, world!')`",
+        "Running the file from the command line outputs exactly the string 'Hello, world!' followed by a newline",
+        "No other code or dependencies are required"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "vybelix_hello_world.py",
+        "tests/test_vybelix_hello_world.py"
+      ],
+      "verifications": [
+        {
+          "command": "vybelix apply",
+          "exit_code": 0,
+          "summary": "Fichiers appliqués : vybelix_hello_world.py, tests/test_vybelix_hello_world.py",
+          "errors": [],
+          "execution_id": "79ca188c06664b708895f2772286047b",
+          "acceptance_criteria": []
+        },
+        {
+          "command": "python -B -m unittest discover -s tests -p test_vybelix_hello_world.py -v",
+          "exit_code": 0,
+          "summary": "OK",
+          "errors": [],
+          "execution_id": "2026-10-02T15:57:04+00:00",
+          "duration_seconds": 0.219,
+          "acceptance_criteria": [
+            "File 'vybelix_hello_world.py' exists in the project root",
+            "File contains a single executable statement: `print('Hello, world!')`",
+            "Running the file from the command line outputs exactly the string 'Hello, world!' followed by a newline",
+            "No other code or dependencies are required"
+          ]
+        }
+      ],
+      "last_result": "OK"
+    },
+    {
+      "id": "C2",
+      "title": "Create tests/test_vybelix_hello_world.py",
+      "status": "done",
+      "dependencies": [
+        "C1"
+      ],
+      "acceptance_criteria": [
+        "File 'tests/test_vybelix_hello_world.py' exists",
+        "The test imports no external modules other than unittest and subprocess",
+        "A unittest.TestCase method executes `python vybelix_hello_world.py` and captures stdout",
+        "The captured output matches exactly 'Hello, world!\\n'",
+        "Running `python -m unittest tests/test_vybelix_hello_world.py` reports success"
+      ],
+      "attempts": 0,
+      "files_modified": [
+        "tests/test_vybelix_hello_world.py"
+      ],
+      "verifications": [
+        {
+          "command": "vybelix apply",
+          "exit_code": 0,
+          "summary": "Fichiers appliqués : tests/test_vybelix_hello_world.py",
+          "errors": [],
+          "execution_id": "616a562a30674b7987cb506fe33da162",
+          "acceptance_criteria": []
+        },
+        {
+          "command": "python -B -m unittest discover -s tests -p test_vybelix_hello_world.py -v",
+          "exit_code": 0,
+          "summary": "OK",
+          "errors": [],
+          "execution_id": "2026-10-02T15:57:11+00:00",
+          "duration_seconds": 0.14,
+          "acceptance_criteria": [
+            "File 'tests/test_vybelix_hello_world.py' exists",
+            "The test imports no external modules other than unittest and subprocess",
+            "A unittest.TestCase method executes `python vybelix_hello_world.py` and captures stdout",
+            "The captured output matches exactly 'Hello, world!\\n'",
+            "Running `python -m unittest tests/test_vybelix_hello_world.py` reports success"
+          ]
+        }
+      ],
+      "last_result": "OK"
+    },
+    {
+      "id": "T1",
+      "title": "Run automated test for vybelix_hello_world",
+      "status": "done",
+      "dependencies": [
+        "C1",
+        "C2"
+      ],
+      "acceptance_criteria": [
+        "Command `python -m unittest discover -s tests` returns exit code 0",
+        "The test output indicates 0 failures and 0 errors",
+        "The failure message, if any, clearly references the stdout mismatch"
+      ],
+      "attempts": 1,
+      "files_modified": [
+        "tests/test_vybelix_hello_world.py"
+      ],
+      "verifications": [
+        {
+          "command": "vybelix apply",
+          "exit_code": 0,
+          "summary": "Fichiers appliqués : tests/test_vybelix_hello_world.py",
+          "errors": [],
+          "execution_id": "84da2e2f72c045e79b80184c824083de",
+          "acceptance_criteria": []
+        },
+        {
+          "command": "python -B -m unittest discover -s tests -p test_vybelix_hello_world.py -v",
+          "exit_code": 0,
+          "summary": "OK",
+          "errors": [],
+          "execution_id": "2026-10-02T15:57:14+00:00",
+          "duration_seconds": 0.156,
+          "acceptance_criteria": [
+            "Command `python -m unittest discover -s tests` returns exit code 0",
+            "The test output indicates 0 failures and 0 errors",
+            "The failure message, if any, clearly references the stdout mismatch"
+          ]
+        }
+      ],
+      "last_result": "OK"
     }
   ]
 }
